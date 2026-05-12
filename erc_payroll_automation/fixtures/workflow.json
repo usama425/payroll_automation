@@ -1,0 +1,31 @@
+[
+    {
+        "doctype": "Workflow",
+        "name": "Payroll Import Workflow",
+        "workflow_name": "Payroll Import Workflow",
+        "document_type": "Payroll Import Run",
+        "is_active": 1,
+        "send_email_alert": 0,
+        "workflow_state_field": "status",
+        "states": [
+            {"doctype": "Workflow Document State", "state": "Draft", "doc_status": "0", "allow_edit": "Payroll Import User", "update_field": "status", "update_value": "Draft"},
+            {"doctype": "Workflow Document State", "state": "Parsing", "doc_status": "0", "allow_edit": "Payroll Import Manager", "update_field": "status", "update_value": "Parsing"},
+            {"doctype": "Workflow Document State", "state": "Parsed", "doc_status": "0", "allow_edit": "Payroll Import User", "update_field": "status", "update_value": "Parsed"},
+            {"doctype": "Workflow Document State", "state": "Reconciliation Pending", "doc_status": "0", "allow_edit": "Payroll Import User", "update_field": "status", "update_value": "Reconciliation Pending"},
+            {"doctype": "Workflow Document State", "state": "Reconciled", "doc_status": "0", "allow_edit": "Payroll Import Manager", "update_field": "status", "update_value": "Reconciled"},
+            {"doctype": "Workflow Document State", "state": "Outputs Generated", "doc_status": "0", "allow_edit": "Payroll Import Manager", "update_field": "status", "update_value": "Outputs Generated"},
+            {"doctype": "Workflow Document State", "state": "Closed", "doc_status": "1", "allow_edit": "Payroll Import Manager", "update_field": "status", "update_value": "Closed"},
+            {"doctype": "Workflow Document State", "state": "Cancelled", "doc_status": "2", "allow_edit": "Payroll Import Manager", "update_field": "status", "update_value": "Cancelled"}
+        ],
+        "transitions": [
+            {"doctype": "Workflow Transition", "state": "Draft", "action": "Parse File", "next_state": "Parsing", "allowed": "Payroll Import User"},
+            {"doctype": "Workflow Transition", "state": "Parsing", "action": "Auto: Parsed", "next_state": "Reconciliation Pending", "allowed": "Payroll Import Manager"},
+            {"doctype": "Workflow Transition", "state": "Reconciliation Pending", "action": "Mark Reconciled", "next_state": "Reconciled", "allowed": "Payroll Import User"},
+            {"doctype": "Workflow Transition", "state": "Reconciled", "action": "Generate Outputs", "next_state": "Outputs Generated", "allowed": "Payroll Import Manager"},
+            {"doctype": "Workflow Transition", "state": "Outputs Generated", "action": "Submit (Close)", "next_state": "Closed", "allowed": "Payroll Import Manager"},
+            {"doctype": "Workflow Transition", "state": "Draft", "action": "Cancel", "next_state": "Cancelled", "allowed": "Payroll Import Manager"},
+            {"doctype": "Workflow Transition", "state": "Reconciliation Pending", "action": "Cancel", "next_state": "Cancelled", "allowed": "Payroll Import Manager"},
+            {"doctype": "Workflow Transition", "state": "Reconciled", "action": "Cancel", "next_state": "Cancelled", "allowed": "Payroll Import Manager"}
+        ]
+    }
+]

@@ -1,0 +1,43 @@
+{
+    "actions": [],
+    "creation": "2026-05-07 10:00:00",
+    "doctype": "DocType",
+    "editable_grid": 0,
+    "engine": "InnoDB",
+    "field_order": [
+        "row_number_in_file",
+        "raw_name",
+        "raw_id_value",
+        "raw_iban",
+        "raw_nationality",
+        "reason_unmatched",
+        "suggested_employees",
+        "section_resolution",
+        "resolution_action",
+        "resolved_employee",
+        "resolution_notes",
+        "raw_data_json"
+    ],
+    "fields": [
+        {"fieldname": "row_number_in_file", "fieldtype": "Int", "label": "Source Row #", "in_list_view": 1, "columns": 1, "read_only": 1},
+        {"fieldname": "raw_name", "fieldtype": "Data", "label": "Name in File", "in_list_view": 1, "columns": 2, "read_only": 1},
+        {"fieldname": "raw_id_value", "fieldtype": "Data", "label": "ID/Iqama in File", "in_list_view": 1, "columns": 2, "read_only": 1},
+        {"fieldname": "raw_iban", "fieldtype": "Data", "label": "IBAN in File", "read_only": 1},
+        {"fieldname": "raw_nationality", "fieldtype": "Data", "label": "Nationality in File", "read_only": 1},
+        {"fieldname": "reason_unmatched", "fieldtype": "Select", "label": "Reason", "options": "no_match\nambiguous_name\nbroken_formula\ninvalid_id\nempty_id_field", "in_list_view": 1, "columns": 2, "read_only": 1},
+        {"fieldname": "suggested_employees", "fieldtype": "Small Text", "label": "Suggested Matches", "description": "Top 3 fuzzy matches from your system, if any", "read_only": 1},
+        {"fieldname": "section_resolution", "fieldtype": "Section Break", "label": "Resolution"},
+        {"fieldname": "resolution_action", "fieldtype": "Select", "label": "Action", "options": "\nLink to Existing Employee\nMark as New Hire (HR will create)\nIgnore (Customer Error)", "in_list_view": 1, "columns": 2},
+        {"fieldname": "resolved_employee", "fieldtype": "Link", "label": "Resolved Employee", "options": "Employee", "depends_on": "eval:doc.resolution_action=='Link to Existing Employee'", "in_list_view": 1, "columns": 2},
+        {"fieldname": "resolution_notes", "fieldtype": "Small Text", "label": "Notes"},
+        {"fieldname": "raw_data_json", "fieldtype": "Long Text", "label": "Raw Row Data (JSON)", "hidden": 1}
+    ],
+    "istable": 1,
+    "modified": "2026-05-07 10:00:00",
+    "module": "ERC Payroll Automation",
+    "name": "Payroll Unmatched Source Row",
+    "owner": "Administrator",
+    "permissions": [],
+    "sort_field": "row_number_in_file",
+    "sort_order": "ASC"
+}

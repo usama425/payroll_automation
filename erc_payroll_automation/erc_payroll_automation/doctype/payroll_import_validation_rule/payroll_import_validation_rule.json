@@ -1,0 +1,77 @@
+{
+    "actions": [],
+    "creation": "2026-05-07 10:00:00",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "is_active",
+        "field_name",
+        "rule_type",
+        "parameter",
+        "severity",
+        "message"
+    ],
+    "fields": [
+        {
+            "fieldname": "is_active",
+            "fieldtype": "Check",
+            "label": "Active",
+            "in_list_view": 1,
+            "columns": 1,
+            "default": "1"
+        },
+        {
+            "fieldname": "field_name",
+            "fieldtype": "Select",
+            "label": "Field",
+            "in_list_view": 1,
+            "columns": 2,
+            "reqd": 1,
+            "options": "raw_id_value\nraw_name\nraw_iban\nraw_nationality\nbasic_per_contract\nhousing_per_contract\ntransportation_per_contract\ntotal_per_contract\nworking_days\novertime\ndeductions\nhq_deductions\ngosi_from_file\ngosi_difference\nnet_salary_from_file\nnet_salary_calculated"
+        },
+        {
+            "fieldname": "rule_type",
+            "fieldtype": "Select",
+            "label": "Rule",
+            "in_list_view": 1,
+            "columns": 2,
+            "reqd": 1,
+            "options": "non_empty\nmin_value\nmax_value\nexact_match\ntolerance_pct\ntolerance_abs\nregex\ngosi_consistency\nnet_consistency"
+        },
+        {
+            "fieldname": "parameter",
+            "fieldtype": "Data",
+            "label": "Parameter",
+            "in_list_view": 1,
+            "columns": 2,
+            "description": "Numeric for tolerance/min/max, regex pattern for regex, expected value for exact_match"
+        },
+        {
+            "fieldname": "severity",
+            "fieldtype": "Select",
+            "label": "Severity",
+            "in_list_view": 1,
+            "columns": 1,
+            "options": "Warning\nError",
+            "default": "Warning",
+            "reqd": 1
+        },
+        {
+            "fieldname": "message",
+            "fieldtype": "Data",
+            "label": "Message",
+            "in_list_view": 1,
+            "columns": 4,
+            "description": "Shown on the row. Use {field}, {value}, {parameter} as placeholders."
+        }
+    ],
+    "istable": 1,
+    "modified": "2026-05-07 10:00:00",
+    "module": "ERC Payroll Automation",
+    "name": "Payroll Import Validation Rule",
+    "owner": "Administrator",
+    "permissions": [],
+    "sort_field": "idx",
+    "sort_order": "ASC"
+}

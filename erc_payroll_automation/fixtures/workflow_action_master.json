@@ -1,0 +1,8 @@
+[
+    {"doctype": "Workflow Action Master", "name": "Parse File", "workflow_action_name": "Parse File"},
+    {"doctype": "Workflow Action Master", "name": "Auto: Parsed", "workflow_action_name": "Auto: Parsed"},
+    {"doctype": "Workflow Action Master", "name": "Mark Reconciled", "workflow_action_name": "Mark Reconciled"},
+    {"doctype": "Workflow Action Master", "name": "Generate Outputs", "workflow_action_name": "Generate Outputs"},
+    {"doctype": "Workflow Action Master", "name": "Submit (Close)", "workflow_action_name": "Submit (Close)"},
+    {"doctype": "Workflow Action Master", "name": "Cancel", "workflow_action_name": "Cancel"}
+]

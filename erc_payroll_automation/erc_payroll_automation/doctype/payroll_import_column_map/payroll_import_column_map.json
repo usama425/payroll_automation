@@ -1,0 +1,72 @@
+{
+    "actions": [],
+    "creation": "2026-05-07 10:00:00",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "target_field",
+        "source_column_header",
+        "column_index_fallback",
+        "transform",
+        "is_required",
+        "notes"
+    ],
+    "fields": [
+        {
+            "fieldname": "target_field",
+            "fieldtype": "Select",
+            "label": "Target Field",
+            "in_list_view": 1,
+            "columns": 2,
+            "reqd": 1,
+            "options": "raw_id_value\nraw_name\nraw_iban\nraw_nationality\nbasic_per_contract\nhousing_per_contract\ntransportation_per_contract\nother_allowance_per_contract\ntotal_per_contract\nworking_days\nbasic_per_working_days\nhousing_per_working_days\ntransportation_per_working_days\nother_allowance_per_working_days\novertime\nother_income\ndeductions\nhq_deductions\ngosi_from_file\nnet_salary_from_file"
+        },
+        {
+            "fieldname": "source_column_header",
+            "fieldtype": "Data",
+            "label": "Source Column Header",
+            "in_list_view": 1,
+            "columns": 3,
+            "description": "Exact text of the header in the customer file (case-insensitive, whitespace-trimmed)"
+        },
+        {
+            "fieldname": "column_index_fallback",
+            "fieldtype": "Int",
+            "label": "Col Idx Fallback (1-based)",
+            "in_list_view": 1,
+            "columns": 1,
+            "description": "Used when the header is blank/merged"
+        },
+        {
+            "fieldname": "transform",
+            "fieldtype": "Select",
+            "label": "Transform",
+            "in_list_view": 1,
+            "columns": 2,
+            "options": "\nnone\ntrim_whitespace\nto_float\nto_int\nexcel_date_to_iso\niban_normalize\nnationality_normalize\nstrip_arabic_diacritics\nuppercase\nlowercase",
+            "default": "none"
+        },
+        {
+            "fieldname": "is_required",
+            "fieldtype": "Check",
+            "label": "Required",
+            "in_list_view": 1,
+            "columns": 1,
+            "description": "If checked, a missing/blank value in this column triggers an Error on the row"
+        },
+        {
+            "fieldname": "notes",
+            "fieldtype": "Small Text",
+            "label": "Notes"
+        }
+    ],
+    "istable": 1,
+    "modified": "2026-05-07 10:00:00",
+    "module": "ERC Payroll Automation",
+    "name": "Payroll Import Column Map",
+    "owner": "Administrator",
+    "permissions": [],
+    "sort_field": "idx",
+    "sort_order": "ASC"
+}

@@ -1,0 +1,18 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include erc_payroll_automation *.css
+recursive-include erc_payroll_automation *.csv
+recursive-include erc_payroll_automation *.html
+recursive-include erc_payroll_automation *.ico
+recursive-include erc_payroll_automation *.js
+recursive-include erc_payroll_automation *.json
+recursive-include erc_payroll_automation *.md
+recursive-include erc_payroll_automation *.png
+recursive-include erc_payroll_automation *.py
+recursive-include erc_payroll_automation *.svg
+recursive-include erc_payroll_automation *.txt
+recursive-exclude erc_payroll_automation *.pyc

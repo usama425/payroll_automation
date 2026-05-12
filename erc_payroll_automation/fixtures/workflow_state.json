@@ -1,0 +1,10 @@
+[
+    {"doctype": "Workflow State", "name": "Draft", "style": "Warning"},
+    {"doctype": "Workflow State", "name": "Parsing", "style": "Inverse"},
+    {"doctype": "Workflow State", "name": "Parsed", "style": "Primary"},
+    {"doctype": "Workflow State", "name": "Reconciliation Pending", "style": "Warning"},
+    {"doctype": "Workflow State", "name": "Reconciled", "style": "Primary"},
+    {"doctype": "Workflow State", "name": "Outputs Generated", "style": "Success"},
+    {"doctype": "Workflow State", "name": "Closed", "style": "Success"},
+    {"doctype": "Workflow State", "name": "Cancelled", "style": "Danger"}
+]

@@ -1,0 +1,33 @@
+{
+    "actions": [],
+    "creation": "2026-05-07 10:00:00",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "employee",
+        "employee_name",
+        "current_status",
+        "relieving_date",
+        "auto_reason",
+        "category",
+        "category_notes"
+    ],
+    "fields": [
+        {"fieldname": "employee", "fieldtype": "Link", "label": "Employee", "options": "Employee", "in_list_view": 1, "columns": 2, "read_only": 1, "reqd": 1},
+        {"fieldname": "employee_name", "fieldtype": "Data", "label": "Name", "in_list_view": 1, "columns": 2, "fetch_from": "employee.employee_name", "read_only": 1},
+        {"fieldname": "current_status", "fieldtype": "Data", "label": "Status", "in_list_view": 1, "columns": 1, "fetch_from": "employee.status", "read_only": 1},
+        {"fieldname": "relieving_date", "fieldtype": "Date", "label": "Relieving Date", "fetch_from": "employee.relieving_date", "read_only": 1},
+        {"fieldname": "auto_reason", "fieldtype": "Data", "label": "Auto-Detected Reason", "read_only": 1, "in_list_view": 1, "columns": 2, "description": "Set by reconciliation engine"},
+        {"fieldname": "category", "fieldtype": "Select", "label": "Category", "options": "\nLeft Mid-Month (EOS Required)\nAlready Inactive\nOn Unpaid Leave\nOn Suspended Leave\nCustomer Forgot to Include\nTransferred to Another Project\nOther (see notes)", "in_list_view": 1, "columns": 2, "reqd": 1, "description": "Required for reconciliation to complete"},
+        {"fieldname": "category_notes", "fieldtype": "Small Text", "label": "Notes"}
+    ],
+    "istable": 1,
+    "modified": "2026-05-07 10:00:00",
+    "module": "ERC Payroll Automation",
+    "name": "Payroll Unaccounted Employee",
+    "owner": "Administrator",
+    "permissions": [],
+    "sort_field": "employee",
+    "sort_order": "ASC"
+}

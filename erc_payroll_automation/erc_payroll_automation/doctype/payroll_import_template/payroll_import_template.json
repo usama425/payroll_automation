@@ -1,0 +1,255 @@
+{
+    "actions": [],
+    "allow_rename": 1,
+    "autoname": "field:template_name",
+    "creation": "2026-05-07 10:00:00",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "section_identity",
+        "template_name",
+        "is_active",
+        "column_break_identity",
+        "customer",
+        "project",
+        "section_location",
+        "location_strategy",
+        "location_field_on_employee",
+        "column_break_location",
+        "filter_by_work_location",
+        "section_file_layout",
+        "sheet_name_override",
+        "header_row_index",
+        "column_break_file_layout",
+        "skip_blank_id_rows",
+        "name_match_threshold",
+        "section_gosi",
+        "gosi_rate_saudi",
+        "column_break_gosi",
+        "gosi_rate_non_saudi",
+        "section_output",
+        "output_format_override",
+        "section_columns",
+        "column_map",
+        "section_validation_rules",
+        "validation_rules",
+        "section_notes",
+        "notes"
+    ],
+    "fields": [
+        {
+            "fieldname": "section_identity",
+            "fieldtype": "Section Break",
+            "label": "Identity"
+        },
+        {
+            "fieldname": "template_name",
+            "fieldtype": "Data",
+            "label": "Template Name",
+            "reqd": 1,
+            "unique": 1,
+            "in_list_view": 1,
+            "description": "Short, unique identifier — e.g. \"RSM Almalqa\", \"Misk School\""
+        },
+        {
+            "fieldname": "is_active",
+            "fieldtype": "Check",
+            "label": "Active",
+            "default": "1",
+            "in_list_view": 1
+        },
+        {
+            "fieldname": "column_break_identity",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "customer",
+            "fieldtype": "Link",
+            "label": "Customer",
+            "options": "Customer",
+            "reqd": 1,
+            "in_list_view": 1
+        },
+        {
+            "fieldname": "project",
+            "fieldtype": "Link",
+            "label": "Project",
+            "options": "Project",
+            "reqd": 1,
+            "in_list_view": 1
+        },
+
+        {
+            "fieldname": "section_location",
+            "fieldtype": "Section Break",
+            "label": "Location Strategy"
+        },
+        {
+            "fieldname": "location_strategy",
+            "fieldtype": "Select",
+            "label": "Where Does Location Live?",
+            "options": "Custom Field on Employee\nDepartment\nCustomer\nMix",
+            "default": "Custom Field on Employee",
+            "reqd": 1,
+            "description": "How the reconciliation engine determines which employees should appear in the customer file"
+        },
+        {
+            "fieldname": "location_field_on_employee",
+            "fieldtype": "Data",
+            "label": "Location Field on Employee",
+            "default": "custom_location",
+            "depends_on": "eval:['Custom Field on Employee', 'Mix'].includes(doc.location_strategy)",
+            "description": "Fieldname on Employee DocType that stores the location (e.g. custom_location)"
+        },
+        {
+            "fieldname": "column_break_location",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "filter_by_work_location",
+            "fieldtype": "Link",
+            "label": "Filter Employees by Work Location",
+            "options": "Work Location",
+            "depends_on": "eval:doc.location_strategy=='Custom Field on Employee' || doc.location_strategy=='Mix'",
+            "description": "When set, the reconciliation only checks employees with custom_location = this Work Location"
+        },
+
+        {
+            "fieldname": "section_file_layout",
+            "fieldtype": "Section Break",
+            "label": "Source File Layout"
+        },
+        {
+            "fieldname": "sheet_name_override",
+            "fieldtype": "Data",
+            "label": "Sheet Name Override",
+            "description": "Exact sheet name to read. Leave blank to auto-detect (first non-empty)."
+        },
+        {
+            "fieldname": "header_row_index",
+            "fieldtype": "Int",
+            "label": "Header Row Index (1-based)",
+            "default": 1,
+            "description": "Which row in the sheet contains column headers. Some files have 2-3 banner rows above headers."
+        },
+        {
+            "fieldname": "column_break_file_layout",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "skip_blank_id_rows",
+            "fieldtype": "Check",
+            "label": "Skip Rows with Blank ID/Iqama",
+            "default": "1",
+            "description": "Treat rows with empty ID column as totals/footer rows and skip them"
+        },
+        {
+            "fieldname": "name_match_threshold",
+            "fieldtype": "Float",
+            "label": "Fuzzy Name Match Threshold",
+            "default": 0.85,
+            "precision": "2",
+            "description": "0.0 - 1.0. Tier-4 (name) matches below this score are treated as 'no match'."
+        },
+
+        {
+            "fieldname": "section_gosi",
+            "fieldtype": "Section Break",
+            "label": "GOSI"
+        },
+        {
+            "fieldname": "gosi_rate_saudi",
+            "fieldtype": "Percent",
+            "label": "GOSI Rate — Saudi (employee share)",
+            "default": 9.75,
+            "description": "Employee share of GOSI for Saudi nationals, applied to (Basic + Housing)"
+        },
+        {
+            "fieldname": "column_break_gosi",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "gosi_rate_non_saudi",
+            "fieldtype": "Percent",
+            "label": "GOSI Rate — Non-Saudi (employee share)",
+            "default": 0.0,
+            "description": "Most non-Saudis have no employee-side GOSI; leave at 0 unless project differs"
+        },
+
+        {
+            "fieldname": "section_output",
+            "fieldtype": "Section Break",
+            "label": "Output"
+        },
+        {
+            "fieldname": "output_format_override",
+            "fieldtype": "Select",
+            "label": "Output Format Override",
+            "options": "\nDefault (37-column RSG-Malqa)",
+            "default": "Default (37-column RSG-Malqa)",
+            "description": "Reserved for future per-template output formats. Leave default unless told otherwise."
+        },
+
+        {
+            "fieldname": "section_columns",
+            "fieldtype": "Section Break",
+            "label": "Column Map"
+        },
+        {
+            "fieldname": "column_map",
+            "fieldtype": "Table",
+            "label": "Column Map",
+            "options": "Payroll Import Column Map",
+            "description": "Map each canonical field to a column header in the customer file. Use a column-index fallback if the header is missing or merged."
+        },
+
+        {
+            "fieldname": "section_validation_rules",
+            "fieldtype": "Section Break",
+            "label": "Validation Rules"
+        },
+        {
+            "fieldname": "validation_rules",
+            "fieldtype": "Table",
+            "label": "Validation Rules",
+            "options": "Payroll Import Validation Rule"
+        },
+
+        {
+            "fieldname": "section_notes",
+            "fieldtype": "Section Break",
+            "label": "Notes",
+            "collapsible": 1
+        },
+        {
+            "fieldname": "notes",
+            "fieldtype": "Text Editor",
+            "label": "Notes"
+        }
+    ],
+    "modified": "2026-05-07 10:00:00",
+    "module": "ERC Payroll Automation",
+    "name": "Payroll Import Template",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "role": "Payroll Import Manager",
+            "create": 1, "delete": 1, "email": 1, "export": 1, "print": 1,
+            "read": 1, "report": 1, "share": 1, "write": 1
+        },
+        {
+            "role": "Payroll Import User",
+            "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "share": 1
+        },
+        {
+            "role": "System Manager",
+            "create": 1, "delete": 1, "email": 1, "export": 1, "print": 1,
+            "read": 1, "report": 1, "share": 1, "write": 1
+        }
+    ],
+    "search_fields": "template_name,customer,project",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "title_field": "template_name",
+    "track_changes": 1
+}
