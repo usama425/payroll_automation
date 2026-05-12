@@ -1,3 +1,3 @@
-frappe
+# frappe itself is provided by the host bench; do not list it here.
 openpyxl>=3.1.2
 rapidfuzz>=3.6.0
