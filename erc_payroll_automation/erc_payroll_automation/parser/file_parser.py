@@ -14,6 +14,7 @@ from openpyxl import load_workbook
 from . import transforms
 from . import employee_matcher
 from . import reconciliation
+from . import validators
 
 
 # Canonical numeric fields parsed off the customer sheet (in order they appear on Row).
@@ -82,6 +83,12 @@ def run_parse(run_name, user=None):
         unaccounted_emp_ids = expected_emp_ids - matched_emp_ids
 
         _persist_results(run, matched, unmatched, unaccounted_emp_ids, indexes)
+
+        # Re-fetch with parsed_rows attached, then run validators
+        run = frappe.get_doc("Payroll Import Run", run.name)
+        validators.validate_run(run, template, indexes)
+        run.save(ignore_permissions=True)
+        frappe.db.commit()
 
         run.db_set("status", "Reconciliation Pending")
         run.db_set("parse_error_log", "")

@@ -1,31 +1,69 @@
 """Saudi bank short-code → display name mapping.
 
-`Employee.bank_name` is stored as a 4-letter SWIFT/short code (e.g. "RJHI", "NCBK").
-The customer-facing internal sheet uses a clean display name (e.g. "Al Rajhi Bank").
-This module is the single source of truth for the translation.
+`Employee.bank_name` is stored as a free-text code (mostly 4-letter SWIFT codes like
+"RJHI", "NCBK", "SABB") but the data contains variants ("Rajhi", "Al Rajhi", "SNB",
+"Riyadh Bank", etc.). This module is the single source of truth for translating any
+of these variants into the clean display name used in the internal sheet.
 
-If a short code is not in the table, `bank_display_for()` returns None and the
-generator will leave the cell blank + flag it as a YELLOW warning on the row.
+Lookups are case-insensitive. If a code isn't recognized, `bank_display_for()`
+returns None and the generator flags the row as a YELLOW warning.
 """
 
-# Top 10 codes confirmed from `SELECT bank_name, COUNT(*) FROM tabEmployee GROUP BY bank_name`
-# (covers ~96% of employees). Remaining 9 to be added.
+# Confirmed from `SELECT bank_name, COUNT(*) FROM tabEmployee GROUP BY bank_name`
+# (covers all 19 distinct values observed). Keys are NORMALIZED (uppercased,
+# spaces collapsed) — see `_normalize()`.
 BANK_CODE_TO_DISPLAY = {
-    "RJHI": "Al Rajhi Bank",
-    "NCBK": "Saudi National Bank",
-    "SABB": "Saudi British Bank",
-    "INMA": "Alinma Bank",
-    "RIBL": "Riyad Bank",
-    "ALBI": "Bank Albilad",
-    "BJAZ": "Bank Al-Jazira",
-    "ARNB": "Arab National Bank",
-    "BSFR": "Banque Saudi Fransi",
-    "STC":  "STC Bank",
+    # Al Rajhi Bank (RJHI is the SWIFT code; "Rajhi" / "Al Rajhi" appear as user entries)
+    "RJHI":      "Al Rajhi Bank",
+    "RAJHI":     "Al Rajhi Bank",
+    "ALRAJHI":   "Al Rajhi Bank",
+
+    # Saudi National Bank (formerly NCB / Samba)
+    "NCBK":      "Saudi National Bank",
+    "SNB":       "Saudi National Bank",
+
+    # Saudi British Bank / Saudi Awwal Bank
+    "SABB":      "Saudi British Bank",
+    "SAB":       "Saudi British Bank",
+
+    # Alinma Bank
+    "INMA":      "Alinma Bank",
+
+    # Riyad Bank ("Riyadh" / "Riyadh Bank" are common user typos)
+    "RIBL":      "Riyad Bank",
+    "RIYADH":    "Riyad Bank",
+    "RIYADHBANK":"Riyad Bank",
+
+    # Bank Albilad
+    "ALBI":      "Bank Albilad",
+
+    # Bank Al-Jazira
+    "BJAZ":      "Bank Al-Jazira",
+
+    # Arab National Bank
+    "ARNB":      "Arab National Bank",
+
+    # Banque Saudi Fransi
+    "BSFR":      "Banque Saudi Fransi",
+
+    # STC Bank
+    "STC":       "STC Bank",
+
+    # Saudi Investment Bank
+    "SIBC":      "Saudi Investment Bank",
+
+    # D360 Bank (SWIFT: DBAKSARI)
+    "DBAKSARI":  "D360 Bank",
+    "D360":      "D360 Bank",
+
+    # Gulf International Bank
+    "GULF":      "Gulf International Bank",
+    "GIB":       "Gulf International Bank",
 }
 
 
-# Optional fallback: derive bank short code from IBAN positions 5-6 (2-digit bank code).
-# Used only when `Employee.bank_name` is empty. Per SAMA published mappings.
+# Fallback: derive bank short code from IBAN positions 5-6 (2-digit SAMA bank code).
+# Only used when Employee.bank_name is blank.
 IBAN_PREFIX_TO_BANK_CODE = {
     "05": "RIBL",
     "10": "NCBK",
@@ -42,10 +80,17 @@ IBAN_PREFIX_TO_BANK_CODE = {
 }
 
 
-def lookup_by_short_code(short_code):
-    if not short_code:
+def _normalize(code):
+    if code is None:
         return None
-    return BANK_CODE_TO_DISPLAY.get(str(short_code).strip().upper())
+    return "".join(str(code).strip().upper().split())
+
+
+def lookup_by_short_code(short_code):
+    n = _normalize(short_code)
+    if not n:
+        return None
+    return BANK_CODE_TO_DISPLAY.get(n)
 
 
 def derive_short_code_from_iban(iban):
@@ -59,7 +104,11 @@ def derive_short_code_from_iban(iban):
 
 
 def bank_display_for(employee_bank_code, iban):
-    """Try employee's stored short-code first; fall back to IBAN-derived code."""
+    """Resolution order:
+        1. Employee.bank_name (any of the 19 known variants)
+        2. IBAN bank-code prefix → short code → display
+        3. None (generator will leave blank + flag warning)
+    """
     display = lookup_by_short_code(employee_bank_code)
     if display:
         return display

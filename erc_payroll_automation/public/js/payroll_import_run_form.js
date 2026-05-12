@@ -63,14 +63,19 @@ frappe.ui.form.on('Payroll Import Run', {
             }, __('Actions')).addClass('btn-primary');
         }
 
-        if (frm.doc.status === 'Outputs Generated') {
+        if (frm.doc.status === 'Outputs Generated' || frm.doc.status === 'Closed') {
             if (frm.doc.internal_sheet_file) {
-                frm.add_custom_button(__('Download Internal Sheet'), function() {
+                frm.add_custom_button(__('Internal Sheet'), function() {
                     window.open(frm.doc.internal_sheet_file);
                 }, __('Downloads'));
             }
+            if (frm.doc.additional_salary_file) {
+                frm.add_custom_button(__('Additional Salary Import'), function() {
+                    window.open(frm.doc.additional_salary_file);
+                }, __('Downloads'));
+            }
             if (frm.doc.validation_report_file) {
-                frm.add_custom_button(__('Download Validation Report'), function() {
+                frm.add_custom_button(__('Validation Report'), function() {
                     window.open(frm.doc.validation_report_file);
                 }, __('Downloads'));
             }

@@ -39,6 +39,7 @@
         "unaccounted_employees",
         "section_outputs",
         "internal_sheet_file",
+        "additional_salary_file",
         "validation_report_file",
         "column_break_outputs",
         "outputs_generated_at",
@@ -255,6 +256,13 @@
             "fieldtype": "Attach",
             "label": "Internal Sheet (Excel)",
             "read_only": 1
+        },
+        {
+            "fieldname": "additional_salary_file",
+            "fieldtype": "Attach",
+            "label": "Additional Salary Import (Excel)",
+            "read_only": 1,
+            "description": "Upload this file in ERPNext via Data Import → Additional Salary"
         },
         {
             "fieldname": "validation_report_file",
