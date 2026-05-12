@@ -1,52 +1,103 @@
-"""
-transforms — small, named functions referenced by Payroll Import Column Map.transform.
+"""Per-cell transform functions referenced by Payroll Import Column Map.transform.
 
-Each transform takes a single raw cell value (str / int / float / datetime / None)
-and returns a normalized value. The parser dispatches by name.
-
-Stub. Full implementations arrive with the parser chunk.
+Each function takes one raw cell value (str / int / float / datetime / None)
+and returns a normalized value. `apply()` dispatches by transform name.
 """
+import re
+from datetime import datetime, date
+
+from openpyxl.utils.datetime import from_excel
 
 
 def trim_whitespace(value):
-    raise NotImplementedError("transforms.trim_whitespace — coming in next chunk")
+    if value is None:
+        return None
+    return str(value).strip()
 
 
 def to_float(value):
-    raise NotImplementedError("transforms.to_float — coming in next chunk")
+    if value is None or value == "":
+        return None
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value)
+    s = str(value).strip().replace(",", "")
+    s = re.sub(r"[^\d.\-]", "", s)
+    if not s or s in ("-", "."):
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
 
 
 def to_int(value):
-    raise NotImplementedError("transforms.to_int — coming in next chunk")
+    f = to_float(value)
+    return int(f) if f is not None else None
 
 
 def excel_date_to_iso(value):
-    raise NotImplementedError("transforms.excel_date_to_iso — coming in next chunk")
+    """Accept datetime, date, or Excel serial number; return python datetime."""
+    if value in (None, ""):
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, date):
+        return datetime.combine(value, datetime.min.time())
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        try:
+            return from_excel(value)
+        except Exception:
+            return None
+    # String dates: try a couple of common formats
+    s = str(value).strip()
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%m/%d/%Y"):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    return None
 
 
 def iban_normalize(value):
-    raise NotImplementedError("transforms.iban_normalize — coming in next chunk")
+    """Strip spaces/dashes, uppercase. Returns clean IBAN or None."""
+    if value is None:
+        return None
+    s = re.sub(r"[\s\-]", "", str(value)).upper()
+    return s or None
 
 
 def nationality_normalize(value):
-    raise NotImplementedError("transforms.nationality_normalize — coming in next chunk")
+    """Normalize 'British ', 'British / London', 'british' → 'British'."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    s = re.split(r"[/,]", s)[0].strip()
+    return s.title() if s else None
 
 
 def strip_arabic_diacritics(value):
-    raise NotImplementedError("transforms.strip_arabic_diacritics — coming in next chunk")
+    """Remove Arabic diacritics (tashkeel) and tatweel."""
+    if value is None:
+        return None
+    return re.sub(r"[ً-ٰٟـ]", "", str(value))
 
 
 def uppercase(value):
-    raise NotImplementedError("transforms.uppercase — coming in next chunk")
+    return str(value).upper() if value is not None else None
 
 
 def lowercase(value):
-    raise NotImplementedError("transforms.lowercase — coming in next chunk")
+    return str(value).lower() if value is not None else None
 
 
-# Used by file_parser to dispatch a transform by name.
+def _noop(value):
+    return value
+
+
 REGISTRY = {
-    "none": lambda v: v,
+    None: _noop,
+    "": _noop,
+    "none": _noop,
     "trim_whitespace": trim_whitespace,
     "to_float": to_float,
     "to_int": to_int,
@@ -57,3 +108,8 @@ REGISTRY = {
     "uppercase": uppercase,
     "lowercase": lowercase,
 }
+
+
+def apply(transform_name, value):
+    fn = REGISTRY.get(transform_name, _noop)
+    return fn(value)
