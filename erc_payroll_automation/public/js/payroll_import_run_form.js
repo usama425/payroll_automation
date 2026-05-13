@@ -25,9 +25,27 @@ frappe.ui.form.on('Payroll Import Run', {
                 frm.reload_doc();
             }, __('Actions'));
 
-            frm.add_custom_button(__('Reset to Draft (if stuck)'), function() {
+            // SAFE recovery: keeps all data, just changes status
+            frm.add_custom_button(__('Revert Status (preserve data)'), function() {
+                const target = frm.doc.rows_matched > 0
+                    ? (frm.doc.rows_unmatched_in_file > 0 ? 'Reconciliation Pending' : 'Reconciled')
+                    : 'Draft';
                 frappe.confirm(
-                    __('This clears all parsed rows and sets status back to Draft. Use only if Parse seems stuck. Continue?'),
+                    __('Revert status to {0}? All matched/unmatched/unaccounted rows are preserved. Use this when generate or parse seems stuck on the worker side.', [target]),
+                    function() {
+                        frappe.call({
+                            method: 'erc_payroll_automation.erc_payroll_automation.doctype.payroll_import_run.payroll_import_run.revert_status',
+                            args: { run_name: frm.doc.name, target_status: target },
+                            callback: () => frm.reload_doc()
+                        });
+                    }
+                );
+            }, __('Actions'));
+
+            // DESTRUCTIVE recovery: wipes everything
+            frm.add_custom_button(__('Reset to Draft (WIPES data)'), function() {
+                frappe.confirm(
+                    __('DESTRUCTIVE: Deletes all parsed rows + unmatched + unaccounted, resets status to Draft. Use only if you want to start over. Continue?'),
                     function() {
                         frappe.call({
                             method: 'erc_payroll_automation.erc_payroll_automation.doctype.payroll_import_run.payroll_import_run.reset_to_draft',
@@ -38,7 +56,7 @@ frappe.ui.form.on('Payroll Import Run', {
                 );
             }, __('Actions'));
 
-            frm.dashboard.add_indicator(__('Parsing in progress... if stuck >5 min, use Reset to Draft'), 'orange');
+            frm.dashboard.add_indicator(__('In progress... if stuck >5 min, use "Revert Status (preserve data)"'), 'orange');
         }
 
         if (frm.doc.status === 'Parsed' || frm.doc.status === 'Reconciliation Pending') {

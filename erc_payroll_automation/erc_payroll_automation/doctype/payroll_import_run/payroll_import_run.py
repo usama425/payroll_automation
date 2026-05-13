@@ -141,7 +141,11 @@ def trigger_generate_outputs(run_name):
         frappe.throw(_("{0} unaccounted employees are not categorized yet"
                        ).format(uncategorized))
 
-    run.db_set("status", "Parsing", update_modified=False)  # reuse "in-progress" indicator
+    # IMPORTANT: do NOT change status here. The background job will flip status to
+    # "Outputs Generated" on success or leave it at "Reconciled" on failure.
+    # (Previously this set status="Parsing" which (a) misled the user, (b) was
+    # destructive because the form's "Reset to Draft" button shows for Parsing
+    # and would wipe matched/unmatched/unaccounted rows on click.)
 
     frappe.enqueue(
         method="erc_payroll_automation.erc_payroll_automation.generators.run_all.generate_outputs",
@@ -152,7 +156,7 @@ def trigger_generate_outputs(run_name):
         enqueue_after_commit=True,
     )
 
-    return {"status": "queued", "message": _("Output generation started")}
+    return {"status": "queued", "message": _("Output generation started in background. Refresh in ~30 seconds.")}
 
 
 @frappe.whitelist()
@@ -174,6 +178,27 @@ def mark_reconciled(run_name):
 
     run.db_set("status", "Reconciled", update_modified=False)
     return {"status": "ok", "message": _("Reconciled. You can now generate outputs.")}
+
+
+@frappe.whitelist()
+def revert_status(run_name, target_status):
+    """Safe status reset — does NOT wipe child rows. Use when a job seems stuck
+    (status='Parsing' from a dead worker, etc.) but you want to keep all matched/
+    unmatched/unaccounted data intact."""
+    valid_targets = {"Draft", "Parsed", "Reconciliation Pending", "Reconciled"}
+    if target_status not in valid_targets:
+        frappe.throw(_(
+            "Invalid target status '{0}'. Allowed: {1}"
+        ).format(target_status, ", ".join(sorted(valid_targets))))
+
+    run = frappe.get_doc("Payroll Import Run", run_name)
+    if run.status in ("Closed", "Cancelled"):
+        frappe.throw(_("Cannot revert from terminal status '{0}'").format(run.status))
+
+    run.db_set("status", target_status, update_modified=False)
+    run.db_set("parse_error_log", "", update_modified=False)
+    return {"status": "ok", "new_status": target_status,
+            "message": _("Status reverted to '{0}'. Child rows preserved.").format(target_status)}
 
 
 @frappe.whitelist()
