@@ -83,18 +83,38 @@ def generate(run, template) -> str:
 
 
 def _save_and_attach(wb, run, fieldname) -> str:
+    """Save workbook + attach to Run via frappe.utils.file_manager.save_file."""
+    from frappe.utils.file_manager import save_file
+
     buf = io.BytesIO()
     wb.save(buf)
-    buf.seek(0)
+    content_bytes = buf.getvalue()
+    buf.close()
+
     filename = f"Additional_Salary_RSG_{run.name}.xlsx"
-    saved = frappe.get_doc({
-        "doctype": "File",
-        "file_name": filename,
-        "attached_to_doctype": "Payroll Import Run",
-        "attached_to_name": run.name,
-        "attached_to_field": fieldname,
-        "is_private": 1,
-        "content": buf.read(),
-    }).insert(ignore_permissions=True)
-    run.db_set(fieldname, saved.file_url)
+
+    frappe.log_error(
+        title=f"Payroll Import generate: saving Additional Salary for {run.name}",
+        message=f"filename={filename!r} field={fieldname!r} size={len(content_bytes)} bytes",
+    )
+
+    saved = save_file(
+        fname=filename,
+        content=content_bytes,
+        dt="Payroll Import Run",
+        dn=run.name,
+        folder=None,
+        decode=False,
+        is_private=1,
+        df=fieldname,
+    )
+    frappe.db.commit()
+
+    frappe.log_error(
+        title=f"Payroll Import generate: saved Additional Salary for {run.name}",
+        message=f"file_url={saved.file_url!r} name={saved.name!r}",
+    )
+
+    run.db_set(fieldname, saved.file_url, update_modified=False)
+    frappe.db.commit()
     return saved.file_url

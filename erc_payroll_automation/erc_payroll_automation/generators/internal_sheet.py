@@ -219,19 +219,39 @@ def _month_label(date_value):
 
 
 def _save_and_attach(wb, run, fieldname, project_name, month_label, label) -> str:
-    """Save workbook to bytes, attach to the run as a Frappe File. Returns file URL."""
+    """Save workbook to bytes, attach to the Run via frappe.utils.file_manager.save_file
+    (v14-recommended; handles disk write + DB record + parent-field link atomically)."""
+    from frappe.utils.file_manager import save_file
+
     buf = io.BytesIO()
     wb.save(buf)
-    buf.seek(0)
+    content_bytes = buf.getvalue()
+    buf.close()
+
     filename = f"RSG- {project_name} Payroll - {month_label}.xlsx".replace("  ", " ")
-    saved = frappe.get_doc({
-        "doctype": "File",
-        "file_name": filename,
-        "attached_to_doctype": "Payroll Import Run",
-        "attached_to_name": run.name,
-        "attached_to_field": fieldname,
-        "is_private": 1,
-        "content": buf.read(),
-    }).insert(ignore_permissions=True)
-    run.db_set(fieldname, saved.file_url)
+
+    frappe.log_error(
+        title=f"Payroll Import generate: saving {label} for {run.name}",
+        message=f"filename={filename!r} field={fieldname!r} size={len(content_bytes)} bytes",
+    )
+
+    saved = save_file(
+        fname=filename,
+        content=content_bytes,
+        dt="Payroll Import Run",
+        dn=run.name,
+        folder=None,
+        decode=False,
+        is_private=1,
+        df=fieldname,
+    )
+    frappe.db.commit()
+
+    frappe.log_error(
+        title=f"Payroll Import generate: saved {label} for {run.name}",
+        message=f"file_url={saved.file_url!r} name={saved.name!r}",
+    )
+
+    run.db_set(fieldname, saved.file_url, update_modified=False)
+    frappe.db.commit()
     return saved.file_url

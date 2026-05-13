@@ -15,6 +15,11 @@ from . import internal_sheet, additional_salary
 
 
 def generate_outputs(run_name: str, user: str = None):
+    frappe.log_error(
+        title=f"Payroll Import generate STARTED: {run_name}",
+        message=f"Worker picked up generate job for {run_name} (user={user})",
+    )
+
     run = frappe.get_doc("Payroll Import Run", run_name)
     template = frappe.get_doc("Payroll Import Template", run.template)
 
@@ -23,6 +28,11 @@ def generate_outputs(run_name: str, user: str = None):
         validators.validate_run(run, template, indexes=None)
         run.save(ignore_permissions=True)
         frappe.db.commit()
+
+        frappe.log_error(
+            title=f"Payroll Import generate: about to build internal sheet for {run_name}",
+            message=f"parsed_rows={len(run.parsed_rows)} unmatched={len(run.unmatched_source_rows)} unaccounted={len(run.unaccounted_employees)}",
+        )
 
         # Step 2 + 3: build both files
         internal_sheet.generate(run, template)
@@ -33,6 +43,12 @@ def generate_outputs(run_name: str, user: str = None):
         run.db_set("outputs_generated_by", user or frappe.session.user, update_modified=False)
         run.db_set("status", "Outputs Generated", update_modified=False)
         run.db_set("parse_error_log", "")
+        frappe.db.commit()
+
+        frappe.log_error(
+            title=f"Payroll Import generate COMPLETE: {run_name}",
+            message=f"Both files attached. internal_sheet_file={frappe.db.get_value('Payroll Import Run', run_name, 'internal_sheet_file')!r} additional_salary_file={frappe.db.get_value('Payroll Import Run', run_name, 'additional_salary_file')!r}",
+        )
 
     except Exception:
         frappe.log_error(
