@@ -67,16 +67,16 @@
             "fieldtype": "Link",
             "label": "Customer",
             "options": "Customer",
-            "reqd": 1,
-            "in_list_view": 1
+            "in_list_view": 1,
+            "description": "Fill in after install. Required when a Run uses this Template."
         },
         {
             "fieldname": "project",
             "fieldtype": "Link",
             "label": "Project",
             "options": "Project",
-            "reqd": 1,
-            "in_list_view": 1
+            "in_list_view": 1,
+            "description": "Fill in after install. Required when a Run uses this Template."
         },
 
         {

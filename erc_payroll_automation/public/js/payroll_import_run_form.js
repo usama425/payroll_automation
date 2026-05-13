@@ -25,7 +25,20 @@ frappe.ui.form.on('Payroll Import Run', {
                 frm.reload_doc();
             }, __('Actions'));
 
-            frm.dashboard.add_indicator(__('Parsing in progress...'), 'orange');
+            frm.add_custom_button(__('Reset to Draft (if stuck)'), function() {
+                frappe.confirm(
+                    __('This clears all parsed rows and sets status back to Draft. Use only if Parse seems stuck. Continue?'),
+                    function() {
+                        frappe.call({
+                            method: 'erc_payroll_automation.erc_payroll_automation.doctype.payroll_import_run.payroll_import_run.reset_to_draft',
+                            args: { run_name: frm.doc.name },
+                            callback: () => frm.reload_doc()
+                        });
+                    }
+                );
+            }, __('Actions'));
+
+            frm.dashboard.add_indicator(__('Parsing in progress... if stuck >5 min, use Reset to Draft'), 'orange');
         }
 
         if (frm.doc.status === 'Parsed' || frm.doc.status === 'Reconciliation Pending') {

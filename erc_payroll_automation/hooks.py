@@ -33,6 +33,12 @@ fixtures = [
         ],
     },
     {
+        "dt": "Payroll Import Template",
+        "filters": [
+            ["name", "in", ["RSG Misk School", "RSG Malqa", "Misk Sport"]]
+        ],
+    },
+    {
         "dt": "Workflow",
         "filters": [["name", "=", "Payroll Import Workflow"]],
     },

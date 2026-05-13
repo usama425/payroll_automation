@@ -31,6 +31,12 @@ NUMERIC_FIELDS = (
 
 def run_parse(run_name, user=None):
     """Background-job entry point. Called from PayrollImportRun.trigger_parse via frappe.enqueue."""
+    # First-thing log so the worker pickup is visible in Error Log even if we crash early
+    frappe.log_error(
+        title=f"Payroll Import parse STARTED: {run_name}",
+        message=f"Worker picked up parse job for {run_name} (user={user})",
+    )
+
     run = frappe.get_doc("Payroll Import Run", run_name)
     template = frappe.get_doc("Payroll Import Template", run.template)
 
@@ -68,9 +74,17 @@ def run_parse(run_name, user=None):
 
         wb.close()
         run.db_set("source_file_rows_total", rows_read)
+        frappe.log_error(
+            title=f"Payroll Import parse: file read {run_name}",
+            message=f"Read {rows_read} rows from sheet '{sheet_name}'. Now matching.",
+        )
 
         # Match
         indexes = employee_matcher.build_indexes(template)
+        frappe.log_error(
+            title=f"Payroll Import parse: indexes built {run_name}",
+            message=f"Built employee indexes for {len(indexes['employees'])} employees. Matching {len(parsed_rows)} parsed rows.",
+        )
         matched, unmatched = [], []
         for p in parsed_rows:
             m = employee_matcher.match_row(p, indexes, template)

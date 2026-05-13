@@ -6,9 +6,30 @@ from frappe.utils import getdate
 
 class PayrollImportRun(Document):
     def validate(self):
+        self.validate_template_complete()
         self.validate_period()
         self.set_default_posting_date()
         self.compute_validation_pass_rate()
+
+    def validate_template_complete(self):
+        """Customer/Project are optional on Template (so fixtures can install),
+        but a Run cannot proceed without them. Enforce at Run-creation time."""
+        if not self.template:
+            return
+        t = frappe.db.get_value(
+            "Payroll Import Template", self.template,
+            ["customer", "project"], as_dict=True,
+        ) or {}
+        missing = []
+        if not t.get("customer"):
+            missing.append("Customer")
+        if not t.get("project"):
+            missing.append("Project")
+        if missing:
+            frappe.throw(_(
+                "Template '{0}' is missing: {1}. "
+                "Open the Template and fill these in before creating a Run."
+            ).format(self.template, ", ".join(missing)))
 
     def validate_period(self):
         if self.payroll_period_start and self.payroll_period_end:
@@ -70,7 +91,7 @@ def trigger_parse(run_name):
     """
     run = frappe.get_doc("Payroll Import Run", run_name)
 
-    if run.status not in ("Draft", "Parsed", "Reconciliation Pending"):
+    if run.status not in ("Draft", "Parsing", "Parsed", "Reconciliation Pending"):
         frappe.throw(_("Cannot parse from status '{0}'").format(run.status))
 
     if not run.source_file:
@@ -153,6 +174,35 @@ def mark_reconciled(run_name):
 
     run.db_set("status", "Reconciled", update_modified=False)
     return {"status": "ok", "message": _("Reconciled. You can now generate outputs.")}
+
+
+@frappe.whitelist()
+def reset_to_draft(run_name):
+    """Escape hatch when a Parse job is stuck in 'Parsing' (worker dead, OOM,
+    silent crash, etc.). Clears child rows and counters, sets status back to Draft
+    so the user can click 'Parse File' again."""
+    run = frappe.get_doc("Payroll Import Run", run_name)
+    if run.status == "Closed":
+        frappe.throw(_("Cannot reset a Closed Run"))
+
+    frappe.db.delete("Payroll Import Row", {"parent": run.name})
+    frappe.db.delete("Payroll Unmatched Source Row", {"parent": run.name})
+    frappe.db.delete("Payroll Unaccounted Employee", {"parent": run.name})
+    frappe.db.commit()
+
+    run.db_set({
+        "status": "Draft",
+        "rows_matched": 0,
+        "rows_unmatched_in_file": 0,
+        "rows_unaccounted_in_system": 0,
+        "rows_with_warnings": 0,
+        "rows_with_errors": 0,
+        "validation_pass_rate": 0,
+        "source_file_sheet_used": "",
+        "source_file_rows_total": 0,
+        "parse_error_log": "",
+    }, update_modified=False)
+    return {"status": "ok", "message": _("Reset. You can now Parse File again.")}
 
 
 @frappe.whitelist()
