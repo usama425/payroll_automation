@@ -85,18 +85,33 @@ def run_parse(run_name, user=None):
             title=f"Payroll Import parse: indexes built {run_name}",
             message=f"Built employee indexes for {len(indexes['employees'])} employees. Matching {len(parsed_rows)} parsed rows.",
         )
+
         matched, unmatched = [], []
         for p in parsed_rows:
             m = employee_matcher.match_row(p, indexes, template)
             p["_match"] = m
             (matched if m["employee"] else unmatched).append(p)
 
+        frappe.log_error(
+            title=f"Payroll Import parse: matching done {run_name}",
+            message=f"matched={len(matched)} unmatched={len(unmatched)}. Computing unaccounted.",
+        )
+
         # Reconcile: who's expected but absent?
         matched_emp_ids = {p["_match"]["employee"] for p in matched}
         expected_emp_ids = set(indexes["employees"].keys())
         unaccounted_emp_ids = expected_emp_ids - matched_emp_ids
 
+        frappe.log_error(
+            title=f"Payroll Import parse: reconcile done {run_name}",
+            message=f"unaccounted={len(unaccounted_emp_ids)}. Persisting to DB.",
+        )
+
         _persist_results(run, matched, unmatched, unaccounted_emp_ids, indexes)
+        frappe.log_error(
+            title=f"Payroll Import parse: persist done {run_name}",
+            message=f"All child rows saved. Running validators.",
+        )
 
         # Re-fetch with parsed_rows attached, then run validators
         run = frappe.get_doc("Payroll Import Run", run.name)
@@ -104,8 +119,19 @@ def run_parse(run_name, user=None):
         run.save(ignore_permissions=True)
         frappe.db.commit()
 
+        frappe.log_error(
+            title=f"Payroll Import parse: validators done {run_name}",
+            message=f"warnings={run.rows_with_warnings} errors={run.rows_with_errors}. Setting status to Reconciliation Pending.",
+        )
+
         run.db_set("status", "Reconciliation Pending")
         run.db_set("parse_error_log", "")
+        frappe.db.commit()
+
+        frappe.log_error(
+            title=f"Payroll Import parse COMPLETE {run_name}",
+            message=f"Status now Reconciliation Pending. matched={len(matched)} unmatched={len(unmatched)} unaccounted={len(unaccounted_emp_ids)}",
+        )
 
     except Exception:
         frappe.log_error(
