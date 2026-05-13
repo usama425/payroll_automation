@@ -19,7 +19,7 @@
         {"fieldname": "current_status", "fieldtype": "Data", "label": "Status", "in_list_view": 1, "columns": 1, "fetch_from": "employee.status", "read_only": 1},
         {"fieldname": "relieving_date", "fieldtype": "Date", "label": "Relieving Date", "fetch_from": "employee.relieving_date", "read_only": 1},
         {"fieldname": "auto_reason", "fieldtype": "Data", "label": "Auto-Detected Reason", "read_only": 1, "in_list_view": 1, "columns": 2, "description": "Set by reconciliation engine"},
-        {"fieldname": "category", "fieldtype": "Select", "label": "Category", "options": "\nLeft Mid-Month (EOS Required)\nAlready Inactive\nOn Unpaid Leave\nOn Suspended Leave\nCustomer Forgot to Include\nTransferred to Another Project\nOther (see notes)", "in_list_view": 1, "columns": 2, "reqd": 1, "description": "Required for reconciliation to complete"},
+        {"fieldname": "category", "fieldtype": "Select", "label": "Category", "options": "\nLeft Mid-Month (EOS Required)\nAlready Inactive\nOn Unpaid Leave\nOn Suspended Leave\nCustomer Forgot to Include\nTransferred to Another Project\nOther (see notes)", "in_list_view": 1, "columns": 2, "bold": 1, "description": "Required before clicking 'Mark Reconciled' (enforced by the run controller, not at save time)"},
         {"fieldname": "category_notes", "fieldtype": "Small Text", "label": "Notes"}
     ],
     "istable": 1,
