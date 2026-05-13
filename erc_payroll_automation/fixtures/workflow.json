@@ -23,9 +23,7 @@
             {"doctype": "Workflow Transition", "state": "Reconciliation Pending", "action": "Mark Reconciled", "next_state": "Reconciled", "allowed": "Payroll Import User"},
             {"doctype": "Workflow Transition", "state": "Reconciled", "action": "Generate Outputs", "next_state": "Outputs Generated", "allowed": "Payroll Import Manager"},
             {"doctype": "Workflow Transition", "state": "Outputs Generated", "action": "Submit (Close)", "next_state": "Closed", "allowed": "Payroll Import Manager"},
-            {"doctype": "Workflow Transition", "state": "Draft", "action": "Cancel", "next_state": "Cancelled", "allowed": "Payroll Import Manager"},
-            {"doctype": "Workflow Transition", "state": "Reconciliation Pending", "action": "Cancel", "next_state": "Cancelled", "allowed": "Payroll Import Manager"},
-            {"doctype": "Workflow Transition", "state": "Reconciled", "action": "Cancel", "next_state": "Cancelled", "allowed": "Payroll Import Manager"}
+            {"doctype": "Workflow Transition", "state": "Closed", "action": "Cancel", "next_state": "Cancelled", "allowed": "Payroll Import Manager"}
         ]
     }
 ]
