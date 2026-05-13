@@ -1,10 +1,10 @@
 [
-    {"doctype": "Workflow State", "name": "Draft", "style": "Warning"},
-    {"doctype": "Workflow State", "name": "Parsing", "style": "Inverse"},
-    {"doctype": "Workflow State", "name": "Parsed", "style": "Primary"},
-    {"doctype": "Workflow State", "name": "Reconciliation Pending", "style": "Warning"},
-    {"doctype": "Workflow State", "name": "Reconciled", "style": "Primary"},
-    {"doctype": "Workflow State", "name": "Outputs Generated", "style": "Success"},
-    {"doctype": "Workflow State", "name": "Closed", "style": "Success"},
-    {"doctype": "Workflow State", "name": "Cancelled", "style": "Danger"}
+    {"doctype": "Workflow State", "name": "Draft", "workflow_state_name": "Draft", "style": "Warning"},
+    {"doctype": "Workflow State", "name": "Parsing", "workflow_state_name": "Parsing", "style": "Inverse"},
+    {"doctype": "Workflow State", "name": "Parsed", "workflow_state_name": "Parsed", "style": "Primary"},
+    {"doctype": "Workflow State", "name": "Reconciliation Pending", "workflow_state_name": "Reconciliation Pending", "style": "Warning"},
+    {"doctype": "Workflow State", "name": "Reconciled", "workflow_state_name": "Reconciled", "style": "Primary"},
+    {"doctype": "Workflow State", "name": "Outputs Generated", "workflow_state_name": "Outputs Generated", "style": "Success"},
+    {"doctype": "Workflow State", "name": "Closed", "workflow_state_name": "Closed", "style": "Success"},
+    {"doctype": "Workflow State", "name": "Cancelled", "workflow_state_name": "Cancelled", "style": "Danger"}
 ]
