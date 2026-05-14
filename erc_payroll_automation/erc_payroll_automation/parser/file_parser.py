@@ -31,7 +31,6 @@ NUMERIC_FIELDS = (
 
 def run_parse(run_name, user=None):
     """Background-job entry point. Called from PayrollImportRun.trigger_parse via frappe.enqueue."""
-    # First-thing log so the worker pickup is visible in Error Log even if we crash early
     frappe.log_error(
         title=f"Payroll Import parse STARTED: {run_name}",
         message=f"Worker picked up parse job for {run_name} (user={user})",
@@ -79,16 +78,28 @@ def run_parse(run_name, user=None):
             message=f"Read {rows_read} rows from sheet '{sheet_name}'. Now matching.",
         )
 
-        # Match
+        # Build indexes
         indexes = employee_matcher.build_indexes(template)
         frappe.log_error(
             title=f"Payroll Import parse: indexes built {run_name}",
-            message=f"Built employee indexes for {len(indexes['employees'])} employees. Matching {len(parsed_rows)} parsed rows.",
+            message=(
+                f"Built employee indexes for {len(indexes['employees'])} employees. "
+                f"Matching {len(parsed_rows)} parsed rows."
+            ),
         )
 
+        # Match — wrap each row so one bad row doesn't kill the whole parse
         matched, unmatched = [], []
         for p in parsed_rows:
-            m = employee_matcher.match_row(p, indexes, template)
+            try:
+                m = employee_matcher.match_row(p, indexes, template)
+            except Exception:
+                frappe.log_error(
+                    title=f"Payroll Import parse: match_row error row {p.get('_row_index')}",
+                    message=frappe.get_traceback(),
+                )
+                m = {"employee": None, "method": None, "confidence": 0.0,
+                     "reason": "match_error", "suggestions": []}
             p["_match"] = m
             (matched if m["employee"] else unmatched).append(p)
 
@@ -104,24 +115,23 @@ def run_parse(run_name, user=None):
 
         frappe.log_error(
             title=f"Payroll Import parse: reconcile done {run_name}",
-            message=f"unaccounted={len(unaccounted_emp_ids)}. Persisting to DB.",
+            message=f"unaccounted={len(unaccounted_emp_ids)}. Pre-validating matched rows.",
         )
 
-        _persist_results(run, matched, unmatched, unaccounted_emp_ids, indexes)
+        # Run validators in-memory BEFORE persisting — avoids a second DB round-trip
+        warnings, errors = _pre_validate_matched(matched, template, indexes)
+
+        frappe.log_error(
+            title=f"Payroll Import parse: pre-validate done {run_name}",
+            message=f"warnings={warnings} errors={errors}. Persisting via db_insert.",
+        )
+
+        # Persist with direct db_insert() — avoids the slow run.save() with N children
+        _persist_results(run, matched, unmatched, unaccounted_emp_ids, indexes, warnings, errors)
+
         frappe.log_error(
             title=f"Payroll Import parse: persist done {run_name}",
-            message=f"All child rows saved. Running validators.",
-        )
-
-        # Re-fetch with parsed_rows attached, then run validators
-        run = frappe.get_doc("Payroll Import Run", run.name)
-        validators.validate_run(run, template, indexes)
-        run.save(ignore_permissions=True)
-        frappe.db.commit()
-
-        frappe.log_error(
-            title=f"Payroll Import parse: validators done {run_name}",
-            message=f"warnings={run.rows_with_warnings} errors={run.rows_with_errors}. Setting status to Reconciliation Pending.",
+            message="All child rows saved. Setting status.",
         )
 
         run.db_set("status", "Reconciliation Pending")
@@ -130,7 +140,12 @@ def run_parse(run_name, user=None):
 
         frappe.log_error(
             title=f"Payroll Import parse COMPLETE {run_name}",
-            message=f"Status now Reconciliation Pending. matched={len(matched)} unmatched={len(unmatched)} unaccounted={len(unaccounted_emp_ids)}",
+            message=(
+                f"Status=Reconciliation Pending. "
+                f"matched={len(matched)} unmatched={len(unmatched)} "
+                f"unaccounted={len(unaccounted_emp_ids)} "
+                f"warnings={warnings} errors={errors}"
+            ),
         )
 
     except Exception:
@@ -138,10 +153,179 @@ def run_parse(run_name, user=None):
             title=f"Payroll Import parse failed: {run_name}",
             message=frappe.get_traceback(),
         )
-        run.db_set("parse_error_log", frappe.get_traceback())
-        run.db_set("status", "Draft")
+        try:
+            run.db_set("parse_error_log", frappe.get_traceback())
+            run.db_set("status", "Draft")
+        except Exception:
+            pass
         raise
 
+
+# ---------------------------------------------------------------------------
+# Pre-validation helpers
+# ---------------------------------------------------------------------------
+
+class _RowProxy:
+    """Lightweight proxy that mimics a Payroll Import Row doc for in-memory validation."""
+
+    def __init__(self, p, employee):
+        # Pre-initialise every numeric and string field to None so validators
+        # can safely call getattr without AttributeError.
+        for fname in NUMERIC_FIELDS:
+            setattr(self, fname, None)
+        self.raw_id_value = None
+        self.raw_name = None
+        self.raw_iban = None
+        self.raw_nationality = None
+
+        # Overlay actual parsed values
+        for k, v in p.items():
+            if not k.startswith("_"):
+                setattr(self, k, v)
+
+        self.employee = employee
+        self.validation_status = "OK"
+        self.validation_messages = None
+
+
+def _pre_validate_matched(matched, template, indexes):
+    """Run validators in memory on matched rows before DB persist.
+
+    Writes ``_validation_status`` and ``_validation_messages`` back onto each
+    dict in ``matched``.  Returns (warnings_count, errors_count).
+    """
+
+    class _FakeRun:
+        def __init__(self, rows):
+            self.parsed_rows = rows
+            self.rows_with_warnings = 0
+            self.rows_with_errors = 0
+
+    proxies = [_RowProxy(p, p["_match"]["employee"]) for p in matched]
+    fake_run = _FakeRun(proxies)
+    try:
+        validators.validate_run(fake_run, template, indexes)
+    except Exception:
+        frappe.log_error(
+            title="Payroll Import parse: pre-validate error (non-fatal)",
+            message=frappe.get_traceback(),
+        )
+        # Non-fatal — continue with all rows marked OK
+        return 0, 0
+
+    for p, proxy in zip(matched, proxies):
+        p["_validation_status"] = proxy.validation_status
+        p["_validation_messages"] = proxy.validation_messages or ""
+
+    return fake_run.rows_with_warnings, fake_run.rows_with_errors
+
+
+# ---------------------------------------------------------------------------
+# Persist helpers — use db_insert() to bypass the slow run.save() pattern
+# ---------------------------------------------------------------------------
+
+def _persist_results(run, matched, unmatched, unaccounted_emp_ids, indexes,
+                     warnings=0, errors=0):
+    """Persist child rows using individual db_insert() calls.
+
+    Avoids the slow Document.save() path that batches 76+ rows in one ORM
+    cycle and was causing timeouts on Frappe Cloud workers.
+    """
+    # Clear previous data from DB
+    frappe.db.delete("Payroll Import Row", {"parent": run.name})
+    frappe.db.delete("Payroll Unmatched Source Row", {"parent": run.name})
+    frappe.db.delete("Payroll Unaccounted Employee", {"parent": run.name})
+
+    # Insert matched rows
+    for i, p in enumerate(matched, start=1):
+        doc = frappe.new_doc("Payroll Import Row")
+        doc.parent = run.name
+        doc.parenttype = "Payroll Import Run"
+        doc.parentfield = "parsed_rows"
+        doc.idx = i
+        doc.row_number_in_file = p["_row_index"]
+        doc.employee = p["_match"]["employee"]
+        doc.match_method = p["_match"]["method"]
+        doc.match_confidence = p["_match"]["confidence"]
+        doc.raw_id_value = _trunc(p.get("raw_id_value"), 140)
+        doc.raw_name = _trunc(p.get("raw_name"), 140)
+        doc.raw_iban = _trunc(p.get("raw_iban"), 140)
+        doc.raw_nationality = _trunc(p.get("raw_nationality"), 140)
+        for fname in NUMERIC_FIELDS:
+            v = p.get(fname)
+            if v is not None:
+                setattr(doc, fname, v)
+        doc.raw_data_json = json.dumps(
+            {k: _json_safe(v) for k, v in p.items() if not k.startswith("_")},
+            default=str,
+        )
+        doc.validation_status = p.get("_validation_status", "OK")
+        doc.validation_messages = p.get("_validation_messages") or ""
+        doc.flags.ignore_permissions = True
+        doc.flags.ignore_mandatory = True
+        doc.db_insert()
+
+    # Insert unmatched rows
+    for i, p in enumerate(unmatched, start=1):
+        doc = frappe.new_doc("Payroll Unmatched Source Row")
+        doc.parent = run.name
+        doc.parenttype = "Payroll Import Run"
+        doc.parentfield = "unmatched_source_rows"
+        doc.idx = i
+        doc.row_number_in_file = p["_row_index"]
+        doc.raw_name = _trunc(p.get("raw_name"), 140)
+        doc.raw_id_value = _trunc(p.get("raw_id_value"), 140)
+        doc.raw_iban = _trunc(p.get("raw_iban"), 140)
+        doc.raw_nationality = _trunc(p.get("raw_nationality"), 140)
+        doc.reason_unmatched = p["_match"].get("reason", "no_match")
+        suggestions = p["_match"].get("suggestions") or []
+        if suggestions:
+            doc.suggested_employees = "\n".join(
+                f"{s['employee']} - {s['name']} (score: {s['score']})"
+                for s in suggestions[:3]
+            )
+        doc.raw_data_json = json.dumps(
+            {k: _json_safe(v) for k, v in p.items() if not k.startswith("_")},
+            default=str,
+        )
+        doc.flags.ignore_permissions = True
+        doc.flags.ignore_mandatory = True
+        doc.db_insert()
+
+    # Insert unaccounted employees
+    for i, u in enumerate(
+        reconciliation.classify_unaccounted(unaccounted_emp_ids, indexes, run), start=1
+    ):
+        doc = frappe.new_doc("Payroll Unaccounted Employee")
+        doc.parent = run.name
+        doc.parenttype = "Payroll Import Run"
+        doc.parentfield = "unaccounted_employees"
+        doc.idx = i
+        doc.employee = u["employee"]
+        doc.auto_reason = u.get("auto_reason") or ""
+        if u.get("auto_category"):
+            doc.category = u["auto_category"]
+        doc.flags.ignore_permissions = True
+        doc.flags.ignore_mandatory = True
+        doc.db_insert()
+
+    # Update run counters directly — no run.save() needed
+    total = len(matched)
+    pass_rate = round(((total - errors) / total) * 100, 2) if total > 0 else 0.0
+    frappe.db.set_value("Payroll Import Run", run.name, {
+        "rows_matched": total,
+        "rows_unmatched_in_file": len(unmatched),
+        "rows_unaccounted_in_system": len(unaccounted_emp_ids),
+        "rows_with_warnings": warnings,
+        "rows_with_errors": errors,
+        "validation_pass_rate": pass_rate,
+    }, update_modified=False)
+    frappe.db.commit()
+
+
+# ---------------------------------------------------------------------------
+# File / header helpers
+# ---------------------------------------------------------------------------
 
 def _resolve_attached_file_path(file_url):
     """Convert a Frappe File URL (/files/foo.xlsx or /private/files/foo.xlsx)
@@ -215,71 +399,6 @@ def _parse_row(row, col_map):
         raw = row[idx]
         result[target] = transforms.apply(spec["transform"], raw)
     return result
-
-
-def _persist_results(run, matched, unmatched, unaccounted_emp_ids, indexes):
-    # Be defensive — also clear here in case run.save() rehydrated child rows.
-    frappe.db.delete("Payroll Import Row", {"parent": run.name})
-    frappe.db.delete("Payroll Unmatched Source Row", {"parent": run.name})
-    frappe.db.delete("Payroll Unaccounted Employee", {"parent": run.name})
-
-    run.set("parsed_rows", [])
-    run.set("unmatched_source_rows", [])
-    run.set("unaccounted_employees", [])
-
-    for p in matched:
-        row = run.append("parsed_rows", {})
-        row.row_number_in_file = p["_row_index"]
-        row.employee = p["_match"]["employee"]
-        row.match_method = p["_match"]["method"]
-        row.match_confidence = p["_match"]["confidence"]
-        row.raw_id_value = _trunc(p.get("raw_id_value"), 140)
-        row.raw_name = _trunc(p.get("raw_name"), 140)
-        row.raw_iban = _trunc(p.get("raw_iban"), 140)
-        row.raw_nationality = _trunc(p.get("raw_nationality"), 140)
-        for fname in NUMERIC_FIELDS:
-            v = p.get(fname)
-            if v is not None:
-                setattr(row, fname, v)
-        row.raw_data_json = json.dumps(
-            {k: _json_safe(v) for k, v in p.items() if not k.startswith("_")},
-            default=str,
-        )
-        row.validation_status = "OK"
-
-    for p in unmatched:
-        row = run.append("unmatched_source_rows", {})
-        row.row_number_in_file = p["_row_index"]
-        row.raw_name = _trunc(p.get("raw_name"), 140)
-        row.raw_id_value = _trunc(p.get("raw_id_value"), 140)
-        row.raw_iban = _trunc(p.get("raw_iban"), 140)
-        row.raw_nationality = _trunc(p.get("raw_nationality"), 140)
-        row.reason_unmatched = p["_match"].get("reason", "no_match")
-        suggestions = p["_match"].get("suggestions") or []
-        if suggestions:
-            row.suggested_employees = "\n".join(
-                f"{s['employee']} - {s['name']} (score: {s['score']})"
-                for s in suggestions[:3]
-            )
-        row.raw_data_json = json.dumps(
-            {k: _json_safe(v) for k, v in p.items() if not k.startswith("_")},
-            default=str,
-        )
-
-    for u in reconciliation.classify_unaccounted(unaccounted_emp_ids, indexes, run):
-        row = run.append("unaccounted_employees", {})
-        row.employee = u["employee"]
-        row.auto_reason = u.get("auto_reason") or ""
-        if u.get("auto_category"):
-            row.category = u["auto_category"]
-
-    run.rows_matched = len(matched)
-    run.rows_unmatched_in_file = len(unmatched)
-    run.rows_unaccounted_in_system = len(unaccounted_emp_ids)
-    run.rows_with_warnings = 0
-    run.rows_with_errors = 0
-    run.save(ignore_permissions=True)
-    frappe.db.commit()
 
 
 def _trunc(value, n):
