@@ -1,7 +1,11 @@
+import json
+
 import frappe
 from frappe.model.document import Document
 from frappe import _
 from frappe.utils import getdate
+
+from ...parser_constants import NUMERIC_FIELDS
 
 
 class PayrollImportRun(Document):
@@ -10,6 +14,78 @@ class PayrollImportRun(Document):
         self.validate_period()
         self.set_default_posting_date()
         self.compute_validation_pass_rate()
+
+    def before_save(self):
+        """Process any user-supplied resolutions on unmatched rows.
+        Selecting Action='Link to Existing Employee' + Resolved Employee and
+        saving will promote the row into parsed_rows with its full salary
+        data (parsed from raw_data_json)."""
+        if self.docstatus == 1:
+            return
+        if not self.unmatched_source_rows:
+            return
+
+        to_remove = []
+        promoted = 0
+        for row in self.unmatched_source_rows:
+            action = (row.resolution_action or "").strip()
+            if not action:
+                continue
+            if action == "Link to Existing Employee":
+                if not row.resolved_employee:
+                    continue  # employee not picked yet — leave row in place
+                self._promote_unmatched_to_parsed(row)
+                to_remove.append(row)
+                promoted += 1
+            elif action in ("Mark as New Hire (HR will create)",
+                            "Ignore (Customer Error)"):
+                to_remove.append(row)
+
+        if not to_remove:
+            return
+
+        # Remove resolved rows
+        self.unmatched_source_rows = [
+            r for r in self.unmatched_source_rows if r not in to_remove
+        ]
+        # Re-number
+        for i, r in enumerate(self.unmatched_source_rows, start=1):
+            r.idx = i
+
+        self.rows_unmatched_in_file = len(self.unmatched_source_rows)
+        if promoted:
+            self.rows_matched = (self.rows_matched or 0) + promoted
+
+    def _promote_unmatched_to_parsed(self, unmatched_row):
+        """Append a new Payroll Import Row with full salary data parsed from
+        the unmatched row's raw_data_json."""
+        raw_data = {}
+        if unmatched_row.raw_data_json:
+            try:
+                raw_data = json.loads(unmatched_row.raw_data_json)
+            except (ValueError, json.JSONDecodeError):
+                raw_data = {}
+
+        new_row = self.append("parsed_rows", {
+            "row_number_in_file": unmatched_row.row_number_in_file,
+            "employee": unmatched_row.resolved_employee,
+            "match_method": "manual_resolution",
+            "match_confidence": 1.0,
+            "raw_id_value": unmatched_row.raw_id_value,
+            "raw_name": unmatched_row.raw_name,
+            "raw_iban": unmatched_row.raw_iban,
+            "raw_nationality": unmatched_row.raw_nationality,
+            "raw_data_json": unmatched_row.raw_data_json,
+            "validation_status": "OK",
+        })
+        for fname in NUMERIC_FIELDS:
+            v = raw_data.get(fname)
+            if v is None or v == "":
+                continue
+            try:
+                setattr(new_row, fname, float(v))
+            except (TypeError, ValueError):
+                pass
 
     def validate_template_complete(self):
         """Customer/Project are optional on Template (so fixtures can install),

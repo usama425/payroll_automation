@@ -15,6 +15,7 @@ app_license = "MIT"
 # DocType-specific JS
 doctype_js = {
     "Payroll Import Run": "public/js/payroll_import_run_form.js",
+    "Payroll No File Run": "public/js/payroll_no_file_run_form.js",
 }
 
 # Installation

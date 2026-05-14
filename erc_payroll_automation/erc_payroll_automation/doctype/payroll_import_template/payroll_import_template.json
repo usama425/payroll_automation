@@ -29,6 +29,12 @@
         "gosi_rate_non_saudi",
         "section_output",
         "output_format_override",
+        "section_no_file_emp_fields",
+        "no_file_emp_field_basic",
+        "no_file_emp_field_housing",
+        "column_break_no_file_emp_fields",
+        "no_file_emp_field_transportation",
+        "no_file_emp_field_other_allowance",
         "section_columns",
         "column_map",
         "section_validation_rules",
@@ -188,6 +194,40 @@
             "options": "\nDefault (37-column RSG-Malqa)",
             "default": "Default (37-column RSG-Malqa)",
             "description": "Reserved for future per-template output formats. Leave default unless told otherwise."
+        },
+        {
+            "fieldname": "section_no_file_emp_fields",
+            "fieldtype": "Section Break",
+            "label": "No-File Generation (Employee Custom Field Names)",
+            "description": "Used by 'Payroll No File Run' when the customer didn't send a file. Names of custom fields on Employee where the contract salary lives. Leave blank if the field doesn't exist — that component will be 0."
+        },
+        {
+            "fieldname": "no_file_emp_field_basic",
+            "fieldtype": "Data",
+            "label": "Basic Salary Field",
+            "default": "custom_basic_per_contract"
+        },
+        {
+            "fieldname": "no_file_emp_field_housing",
+            "fieldtype": "Data",
+            "label": "Housing Allowance Field",
+            "default": "custom_housing_per_contract"
+        },
+        {
+            "fieldname": "column_break_no_file_emp_fields",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "no_file_emp_field_transportation",
+            "fieldtype": "Data",
+            "label": "Transportation Allowance Field",
+            "default": "custom_transportation_per_contract"
+        },
+        {
+            "fieldname": "no_file_emp_field_other_allowance",
+            "fieldtype": "Data",
+            "label": "Other Allowance Field",
+            "default": "custom_other_allowance_per_contract"
         },
 
         {

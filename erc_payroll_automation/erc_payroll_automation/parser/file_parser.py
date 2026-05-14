@@ -15,18 +15,10 @@ from . import transforms
 from . import employee_matcher
 from . import reconciliation
 from . import validators
+from ..parser_constants import NUMERIC_FIELDS  # re-exported below for back-compat
 
 
-# Canonical numeric fields parsed off the customer sheet (in order they appear on Row).
-NUMERIC_FIELDS = (
-    "basic_per_contract", "housing_per_contract", "transportation_per_contract",
-    "other_allowance_per_contract", "total_per_contract",
-    "working_days",
-    "basic_per_working_days", "housing_per_working_days",
-    "transportation_per_working_days", "other_allowance_per_working_days",
-    "overtime", "other_income", "deductions", "hq_deductions",
-    "gosi_from_file", "net_salary_from_file",
-)
+__all__ = ["NUMERIC_FIELDS", "run_parse"]
 
 
 def run_parse(run_name, user=None):

@@ -70,20 +70,32 @@ BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 
 
 def generate(run, template) -> str:
-    """Build the internal sheet, attach to the Run as `internal_sheet_file`. Returns file URL."""
+    """Build the internal sheet from a Payroll Import Run, attach as `internal_sheet_file`."""
     project_name = _project_display_name(template)
     month_label = _month_label(run.payroll_period_end or run.posting_date)
+    wb = build_workbook(run.parsed_rows, template, project_name, month_label)
+    filename = f"RSG- {project_name} Payroll - {month_label}.xlsx".replace("  ", " ")
+    return save_excel_and_link(
+        wb, run.name, "internal_sheet_file", filename, "Internal Sheet",
+    )
 
+
+def build_workbook(rows, template, project_name, month_label):
+    """Build the internal-sheet workbook from any iterable of row-like objects.
+
+    Used by both the file-based Payroll Import Run and the no-file
+    Payroll No File Run.  Each ``row`` only needs the same attribute surface
+    that ``_resolve`` reads — see _RowLike in no_file_generator for the
+    no-file shape.
+    """
+    rows = list(rows)
     wb = Workbook()
     ws = wb.active
-    ws.title = f"RSG- {project_name.upper()}"[:31]  # Excel sheet name max 31 chars
+    ws.title = f"RSG- {project_name.upper()}"[:31]
 
-    # Row 1-2 banners
     ws.cell(row=1, column=1, value=f"Elite - RSP- {project_name} Payroll").font = Font(bold=True, size=12)
     ws.cell(row=2, column=1, value=f"For the month of {month_label}").font = Font(italic=True)
-    # Row 3 blank
 
-    # Row 4 headers
     for col_idx, (header, _, _) in enumerate(COLUMNS, start=1):
         if header is None:
             continue
@@ -93,10 +105,9 @@ def generate(run, template) -> str:
         c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         c.border = BORDER
 
-    # Data rows
     emp_cache = {}
-    for serial, row in enumerate(run.parsed_rows, start=1):
-        emp = _get_employee(row.employee, emp_cache)
+    for serial, row in enumerate(rows, start=1):
+        emp = _get_employee(getattr(row, "employee", None), emp_cache)
         excel_row = 4 + serial
         for col_idx, (_, field, kind) in enumerate(COLUMNS, start=1):
             value = _resolve(row, emp, template, kind, field, serial)
@@ -107,33 +118,63 @@ def generate(run, template) -> str:
                 cell.number_format = "#,##0.00"
             cell.border = BORDER
 
-        # Whole-row highlight by validation status (overrides nothing data-wise)
         fill = None
-        if row.validation_status == "Error":
+        status = getattr(row, "validation_status", None)
+        if status == "Error":
             fill = FILL_ERROR
-        elif row.validation_status == "Warning":
+        elif status == "Warning":
             fill = FILL_WARNING
         if fill:
             for col_idx in range(1, len(COLUMNS) + 1):
                 ws.cell(row=excel_row, column=col_idx).fill = fill
-            # Add validation message as a comment on the first cell
-            if row.validation_messages:
+            msgs = getattr(row, "validation_messages", None)
+            if msgs:
                 from openpyxl.comments import Comment
                 ws.cell(row=excel_row, column=1).comment = Comment(
-                    row.validation_messages[:2000], "ERC Payroll Automation"
+                    msgs[:2000], "ERC Payroll Automation"
                 )
 
-    # Column widths — sensible defaults
+    if rows:
+        total_row_idx = 4 + len(rows) + 1
+        _write_totals_row(ws, total_row_idx, first_data_row=5, last_data_row=4 + len(rows))
+
     for col_idx, (header, _, _) in enumerate(COLUMNS, start=1):
         if header and len(header) > 10:
             ws.column_dimensions[ws.cell(row=4, column=col_idx).column_letter].width = max(15, len(header) + 2)
         else:
             ws.column_dimensions[ws.cell(row=4, column=col_idx).column_letter].width = 14
 
-    filename = f"RSG- {project_name} Payroll - {month_label}.xlsx".replace("  ", " ")
-    return save_excel_and_link(
-        wb, run.name, "internal_sheet_file", filename, "Internal Sheet",
-    )
+    return wb
+
+
+_TOTAL_FILL = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
+
+
+def _write_totals_row(ws, total_row_idx, first_data_row, last_data_row):
+    """Write a `Total` label + SUM(...) formulas for every numeric column."""
+    total_cols = {
+        10, 11,           # Basic per contract, Working Days
+        12, 13, 14, 15,   # Baisc, Housing, Transportaion, Other Allowance
+        16, 17, 18,       # Total Salary, Overtime, Other Income
+        19, 20, 21,       # GOSI, HQ Ded, Deductions
+        22, 23, 24,       # Total Deductions, Net Salary, Charge Base
+        27, 28, 29, 30, 31,  # Right-side billing block
+    }
+    label_cell = ws.cell(row=total_row_idx, column=1, value="Total")
+    label_cell.font = Font(bold=True)
+    label_cell.fill = _TOTAL_FILL
+    label_cell.border = BORDER
+    label_cell.alignment = Alignment(horizontal="right")
+
+    for col_idx in range(1, len(COLUMNS) + 1):
+        cell = ws.cell(row=total_row_idx, column=col_idx)
+        cell.fill = _TOTAL_FILL
+        cell.border = BORDER
+        if col_idx in total_cols:
+            col_letter = ws.cell(row=4, column=col_idx).column_letter
+            cell.value = f"=SUM({col_letter}{first_data_row}:{col_letter}{last_data_row})"
+            cell.number_format = "#,##0.00"
+            cell.font = Font(bold=True)
 
 
 def _resolve(row, emp, template, kind, field, serial):
