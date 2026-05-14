@@ -160,6 +160,38 @@ def trigger_generate_outputs(run_name):
 
 
 @frappe.whitelist()
+def force_regenerate_outputs(run_name):
+    """Re-run output generation regardless of unmatched/uncategorized state.
+
+    Recovery path when a previous generate run left the Run at 'Outputs Generated'
+    without populating the attach fields, or when the user edited rows after the
+    last successful generate and wants fresh outputs.
+    """
+    run = frappe.get_doc("Payroll Import Run", run_name)
+    if run.docstatus == 1:
+        frappe.throw(_("Cannot regenerate after Submit. Cancel the document first."))
+    if run.status not in ("Reconciled", "Outputs Generated", "Reconciliation Pending"):
+        frappe.throw(_(
+            "Force regenerate only available from Reconciliation Pending, "
+            "Reconciled, or Outputs Generated. Current: {0}"
+        ).format(run.status))
+
+    run.db_set("status", "Reconciled", update_modified=False)
+    frappe.db.commit()
+
+    frappe.enqueue(
+        method="erc_payroll_automation.erc_payroll_automation.generators.run_all.generate_outputs",
+        queue="long",
+        timeout=1200,
+        run_name=run.name,
+        user=frappe.session.user,
+        enqueue_after_commit=True,
+    )
+    return {"status": "queued",
+            "message": _("Re-generation queued. Refresh in ~30 seconds.")}
+
+
+@frappe.whitelist()
 def mark_reconciled(run_name):
     """
     Called when finance has resolved all unmatched/unaccounted rows.

@@ -98,6 +98,27 @@ frappe.ui.form.on('Payroll Import Run', {
             _add_download_buttons(frm);
         }
 
+        // Recovery button — re-run generate when the user is stuck without files
+        if ((frm.doc.status === 'Outputs Generated' || frm.doc.status === 'Reconciled'
+             || frm.doc.status === 'Reconciliation Pending') && frm.doc.docstatus === 0) {
+            frm.add_custom_button(__('Re-generate Outputs (force)'), function() {
+                frappe.confirm(
+                    __('Force re-run output generation? Use this if the Internal Sheet / Additional Salary buttons are not appearing.'),
+                    function() {
+                        frappe.call({
+                            method: 'erc_payroll_automation.erc_payroll_automation.doctype.payroll_import_run.payroll_import_run.force_regenerate_outputs',
+                            args: { run_name: frm.doc.name },
+                            freeze: true,
+                            freeze_message: __('Re-generating outputs...'),
+                            callback: function() {
+                                setTimeout(() => frm.reload_doc(), 5000);
+                            }
+                        });
+                    }
+                );
+            }, __('Actions'));
+        }
+
         // ===== Summary Indicators on Dashboard =====
         if (frm.doc.rows_matched > 0) {
             frm.dashboard.add_indicator(
