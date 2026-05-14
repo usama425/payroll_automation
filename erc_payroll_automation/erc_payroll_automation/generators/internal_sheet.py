@@ -8,8 +8,6 @@ Layout (matches historical files like RSG- Misk School Payroll- February 2026.xl
     Row 5+: one row per matched employee, cells highlighted by validation status
 """
 
-import io
-import os
 from datetime import datetime
 
 import frappe
@@ -17,6 +15,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
 
 from ..parser.bank_codes import bank_display_for
+from .file_attach import save_excel_and_link
 
 
 # Column spec — (header, fieldname_on_payroll_import_row, kind)
@@ -131,7 +130,10 @@ def generate(run, template) -> str:
         else:
             ws.column_dimensions[ws.cell(row=4, column=col_idx).column_letter].width = 14
 
-    return _save_and_attach(wb, run, "internal_sheet_file", project_name, month_label, "Internal")
+    filename = f"RSG- {project_name} Payroll - {month_label}.xlsx".replace("  ", " ")
+    return save_excel_and_link(
+        wb, run.name, "internal_sheet_file", filename, "Internal Sheet",
+    )
 
 
 def _resolve(row, emp, template, kind, field, serial):
@@ -218,40 +220,3 @@ def _month_label(date_value):
     return date_value.strftime("%B %Y")
 
 
-def _save_and_attach(wb, run, fieldname, project_name, month_label, label) -> str:
-    """Save workbook to bytes, attach to the Run via frappe.utils.file_manager.save_file
-    (v14-recommended; handles disk write + DB record + parent-field link atomically)."""
-    from frappe.utils.file_manager import save_file
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    content_bytes = buf.getvalue()
-    buf.close()
-
-    filename = f"RSG- {project_name} Payroll - {month_label}.xlsx".replace("  ", " ")
-
-    frappe.log_error(
-        title=f"Payroll Import generate: saving {label} for {run.name}",
-        message=f"filename={filename!r} field={fieldname!r} size={len(content_bytes)} bytes",
-    )
-
-    saved = save_file(
-        fname=filename,
-        content=content_bytes,
-        dt="Payroll Import Run",
-        dn=run.name,
-        folder=None,
-        decode=False,
-        is_private=1,
-        df=fieldname,
-    )
-    frappe.db.commit()
-
-    frappe.log_error(
-        title=f"Payroll Import generate: saved {label} for {run.name}",
-        message=f"file_url={saved.file_url!r} name={saved.name!r}",
-    )
-
-    run.db_set(fieldname, saved.file_url, update_modified=False)
-    frappe.db.commit()
-    return saved.file_url

@@ -95,21 +95,7 @@ frappe.ui.form.on('Payroll Import Run', {
         }
 
         if (frm.doc.status === 'Outputs Generated' || frm.doc.status === 'Closed') {
-            if (frm.doc.internal_sheet_file) {
-                frm.add_custom_button(__('Internal Sheet'), function() {
-                    window.open(frm.doc.internal_sheet_file);
-                }, __('Downloads'));
-            }
-            if (frm.doc.additional_salary_file) {
-                frm.add_custom_button(__('Additional Salary Import'), function() {
-                    window.open(frm.doc.additional_salary_file);
-                }, __('Downloads'));
-            }
-            if (frm.doc.validation_report_file) {
-                frm.add_custom_button(__('Validation Report'), function() {
-                    window.open(frm.doc.validation_report_file);
-                }, __('Downloads'));
-            }
+            _add_download_buttons(frm);
         }
 
         // ===== Summary Indicators on Dashboard =====
@@ -144,6 +130,46 @@ frappe.ui.form.on('Payroll Import Run', {
         }
     }
 });
+
+
+function _add_download_buttons(frm) {
+    // Primary path — attach fields populated on the Run
+    const fields = [
+        { f: 'internal_sheet_file',     label: __('Internal Sheet') },
+        { f: 'additional_salary_file',  label: __('Additional Salary Import') },
+        { f: 'validation_report_file',  label: __('Validation Report') },
+    ];
+    let any_added = false;
+    fields.forEach(({ f, label }) => {
+        if (frm.doc[f]) {
+            frm.add_custom_button(label, () => window.open(frm.doc[f]), __('Downloads'));
+            any_added = true;
+        }
+    });
+
+    // Fallback — if status says outputs were generated but attach fields are
+    // empty for some reason, scan File records attached to this Run and
+    // surface them so the user can still download.
+    if (any_added) return;
+
+    frappe.db.get_list('File', {
+        filters: {
+            attached_to_doctype: 'Payroll Import Run',
+            attached_to_name: frm.doc.name,
+        },
+        fields: ['name', 'file_name', 'file_url', 'attached_to_field'],
+        order_by: 'creation desc',
+        limit: 20,
+    }).then(files => {
+        (files || []).forEach(file => {
+            // Skip the source file the user uploaded
+            if (file.attached_to_field === 'source_file') return;
+            const label = file.file_name || file.name;
+            frm.add_custom_button(label, () => window.open(file.file_url), __('Downloads'));
+        });
+        frm.refresh();
+    });
+}
 
 
 function _all_unaccounted_categorized(frm) {
