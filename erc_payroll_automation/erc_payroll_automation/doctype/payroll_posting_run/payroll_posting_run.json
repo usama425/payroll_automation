@@ -1,0 +1,224 @@
+{
+    "actions": [],
+    "allow_rename": 0,
+    "autoname": "format:PPR-{YYYY}-{MM}-{####}",
+    "creation": "2026-05-17 12:00:00",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "section_setup",
+        "template",
+        "customer",
+        "project",
+        "salary_structure",
+        "source_run",
+        "column_break_setup",
+        "payroll_period_start",
+        "payroll_period_end",
+        "posting_date",
+        "approved_sheet",
+        "section_status",
+        "status",
+        "employees_in_sheet",
+        "column_break_status",
+        "salary_changes_count",
+        "additional_salary_count",
+        "created_payroll_entry",
+        "section_changes",
+        "salary_changes",
+        "section_variable",
+        "additional_salary_preview",
+        "section_log",
+        "posting_log"
+    ],
+    "fields": [
+        {
+            "fieldname": "section_setup",
+            "fieldtype": "Section Break",
+            "label": "Setup"
+        },
+        {
+            "fieldname": "template",
+            "fieldtype": "Link",
+            "label": "Template",
+            "options": "Payroll Import Template",
+            "reqd": 1,
+            "description": "Drives the Salary Structure assigned + project/customer scope."
+        },
+        {
+            "fieldname": "customer",
+            "fieldtype": "Link",
+            "label": "Customer",
+            "options": "Customer",
+            "fetch_from": "template.customer",
+            "read_only": 1
+        },
+        {
+            "fieldname": "project",
+            "fieldtype": "Link",
+            "label": "Project",
+            "options": "Project",
+            "fetch_from": "template.project",
+            "read_only": 1
+        },
+        {
+            "fieldname": "salary_structure",
+            "fieldtype": "Link",
+            "label": "Salary Structure",
+            "options": "Salary Structure",
+            "fetch_from": "template.salary_structure",
+            "read_only": 1,
+            "description": "From the Template. Must be set on the Template before posting."
+        },
+        {
+            "fieldname": "source_run",
+            "fieldtype": "Link",
+            "label": "Source Payroll Import Run",
+            "options": "Payroll Import Run",
+            "description": "Optional — the Run whose Internal Sheet this was generated from (audit trail)."
+        },
+        {
+            "fieldname": "column_break_setup",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "payroll_period_start",
+            "fieldtype": "Date",
+            "label": "Payroll Period Start",
+            "reqd": 1
+        },
+        {
+            "fieldname": "payroll_period_end",
+            "fieldtype": "Date",
+            "label": "Payroll Period End",
+            "reqd": 1
+        },
+        {
+            "fieldname": "posting_date",
+            "fieldtype": "Date",
+            "label": "Posting Date"
+        },
+        {
+            "fieldname": "approved_sheet",
+            "fieldtype": "Attach",
+            "label": "Approved Internal Sheet (Excel)",
+            "reqd": 1,
+            "description": "Upload the reviewed/corrected RSG Internal Sheet (.xlsx) produced by a Payroll Import Run."
+        },
+        {
+            "fieldname": "section_status",
+            "fieldtype": "Section Break",
+            "label": "Status"
+        },
+        {
+            "fieldname": "status",
+            "fieldtype": "Select",
+            "label": "Status",
+            "options": "Draft\nParsing\nReview\nPosting\nPosted\nFailed",
+            "default": "Draft",
+            "read_only": 1,
+            "in_list_view": 1
+        },
+        {
+            "fieldname": "employees_in_sheet",
+            "fieldtype": "Int",
+            "label": "Employees in Sheet",
+            "read_only": 1
+        },
+        {
+            "fieldname": "column_break_status",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "salary_changes_count",
+            "fieldtype": "Int",
+            "label": "Salary Changes Detected",
+            "read_only": 1
+        },
+        {
+            "fieldname": "additional_salary_count",
+            "fieldtype": "Int",
+            "label": "Additional Salary Rows",
+            "read_only": 1
+        },
+        {
+            "fieldname": "created_payroll_entry",
+            "fieldtype": "Link",
+            "label": "Created Payroll Entry (Draft)",
+            "options": "Payroll Entry",
+            "read_only": 1
+        },
+        {
+            "fieldname": "section_changes",
+            "fieldtype": "Section Break",
+            "label": "Salary Change Review",
+            "description": "Tick 'Apply' on the rows you approve. Prorated rows are left unticked — verify before applying (the sheet value is reduced by Working Days, not the contract amount)."
+        },
+        {
+            "fieldname": "salary_changes",
+            "fieldtype": "Table",
+            "label": "Salary Changes",
+            "options": "Payroll Salary Change"
+        },
+        {
+            "fieldname": "section_variable",
+            "fieldtype": "Section Break",
+            "label": "Variable Components Preview (Additional Salary)",
+            "collapsible": 1
+        },
+        {
+            "fieldname": "additional_salary_preview",
+            "fieldtype": "Table",
+            "label": "Additional Salary Preview",
+            "options": "Payroll Variable Preview"
+        },
+        {
+            "fieldname": "section_log",
+            "fieldtype": "Section Break",
+            "label": "Posting Log",
+            "collapsible": 1
+        },
+        {
+            "fieldname": "posting_log",
+            "fieldtype": "Long Text",
+            "label": "Posting Log",
+            "read_only": 1
+        }
+    ],
+    "is_submittable": 0,
+    "links": [],
+    "modified": "2026-05-17 12:00:00",
+    "modified_by": "Administrator",
+    "module": "Erc Payroll Automation",
+    "name": "Payroll Posting Run",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "Payroll Import Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "create": 1,
+            "read": 1,
+            "report": 1,
+            "role": "Payroll Import User",
+            "write": 1
+        },
+        {
+            "read": 1,
+            "report": 1,
+            "role": "System Manager"
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 1
+}
