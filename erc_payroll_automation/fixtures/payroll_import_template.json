@@ -460,10 +460,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. Customer file uses 29-column layout. Iqama on col 6, salary broken into BASIC / COLA / TRANSPORT / HOUSING / HTA / Other ALLOWANCE / GOSI. Fill in Customer + Project + Filter by Work Location before first use.</p>",
         "column_map": [
             {
@@ -573,10 +573,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. Bank-transfer style file: name / bank / IBAN / basic / housing / other / deductions / net / National_ID. No nationality column.</p>",
         "column_map": [
             {
@@ -651,10 +651,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. Custom Employee ID (JCD-prefixed e.g. JCD204J) on col 1; map to Employee.employee_id_from_client. Multiple overtime + allowance columns aggregated by source file.</p>",
         "column_map": [
             {
@@ -764,10 +764,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. 13-column simple format: Iqama / Name / Bank / IBAN / total / basic / housing / other / deduction.</p>",
         "column_map": [
             {
@@ -842,10 +842,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. Arabic headers — column lookup by header text is unreliable. All fields use column_index_fallback. Layout: 1=ERP ID, 2=Name, 3=Hire date, 4=Iqama, 5=Basic, 6=COLA?, 7=Housing, 8=Transport, 9=Mobile, 10=Allowances, 11=Other, 12=Bonus, 13=Working days, 14=OT, 15-18=Deductions, 19=Misc deduction, 20=Net.</p>",
         "column_map": [
             {
@@ -952,10 +952,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. Multi-row title bar in source; real headers on row 4. WWID is the custom employee ID; map to Employee.employee_id_from_client. Many allowance + retro columns aggregated by source.</p>",
         "column_map": [
             {
@@ -1051,10 +1051,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. AP Hashim 72-column format. Set Filter by Work Location to the 'AMJAD' location. 'Code' is the customer-side numeric employee ID — map to Employee.employee_id_from_client.</p>",
         "column_map": [
             {
@@ -1157,10 +1157,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. AP Hashim 72-column format. Set Filter by Work Location to the 'Damam' location. 'Code' is the customer-side numeric employee ID — map to Employee.employee_id_from_client.</p>",
         "column_map": [
             {
@@ -1263,10 +1263,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. AP Hashim 72-column format. Set Filter by Work Location to the 'HO' location. 'Code' is the customer-side numeric employee ID — map to Employee.employee_id_from_client.</p>",
         "column_map": [
             {
@@ -1369,10 +1369,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. AP Hashim 72-column format. Set Filter by Work Location to the 'JEDDAH-2' location. 'Code' is the customer-side numeric employee ID — map to Employee.employee_id_from_client.</p>",
         "column_map": [
             {
@@ -1475,10 +1475,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. AP Hashim 72-column format. Set Filter by Work Location to the 'JUBAIL' location. 'Code' is the customer-side numeric employee ID — map to Employee.employee_id_from_client.</p>",
         "column_map": [
             {
@@ -1581,10 +1581,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. AP Hashim 72-column format. Set Filter by Work Location to the 'RIYADH2' location. 'Code' is the customer-side numeric employee ID — map to Employee.employee_id_from_client.</p>",
         "column_map": [
             {
@@ -1687,10 +1687,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. RSG sub-project template. Layout uses 'Baisc' (typo) and 'Nationl' headers. Fill in Customer + Project + Filter by Work Location before first use.</p>",
         "column_map": [
             {
@@ -1821,10 +1821,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. RSG sub-project template. Layout uses 'Baisc' (typo) and 'Nationl' headers. Fill in Customer + Project + Filter by Work Location before first use.</p>",
         "column_map": [
             {
@@ -1955,10 +1955,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. RSG sub-project template. Layout uses 'Baisc' (typo) and 'Nationl' headers. Fill in Customer + Project + Filter by Work Location before first use.</p>",
         "column_map": [
             {
@@ -2089,10 +2089,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. RSG sub-project template. Layout uses 'Basic' (correct) and 'Nationality' headers. Fill in Customer + Project + Filter by Work Location before first use.</p>",
         "column_map": [
             {
@@ -2223,10 +2223,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. RSG sub-project template. Layout uses 'Basic' (correct) and 'Nationality' headers. Fill in Customer + Project + Filter by Work Location before first use.</p>",
         "column_map": [
             {
@@ -2357,10 +2357,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. RSG sub-project template. Layout uses 'Basic' (correct) and 'Nationality' headers. Fill in Customer + Project + Filter by Work Location before first use.</p>",
         "column_map": [
             {
@@ -2491,10 +2491,10 @@
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": "<p>Auto-installed seed template. RSG Hittin uses an extended 38-column layout (no title row; includes Location + Bank Name + duplicate per-contract / per-working-day blocks). Per-WD columns are resolved via column_index_fallback because the headers are duplicated.</p>",
         "column_map": [
             {

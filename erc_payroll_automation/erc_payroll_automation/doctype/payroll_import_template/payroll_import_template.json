@@ -205,13 +205,13 @@
             "fieldname": "no_file_emp_field_basic",
             "fieldtype": "Data",
             "label": "Basic Salary Field",
-            "default": "custom_basic_per_contract"
+            "default": "basic_salary"
         },
         {
             "fieldname": "no_file_emp_field_housing",
             "fieldtype": "Data",
             "label": "Housing Allowance Field",
-            "default": "custom_housing_per_contract"
+            "default": "housing_allowance"
         },
         {
             "fieldname": "column_break_no_file_emp_fields",
@@ -221,13 +221,13 @@
             "fieldname": "no_file_emp_field_transportation",
             "fieldtype": "Data",
             "label": "Transportation Allowance Field",
-            "default": "custom_transportation_per_contract"
+            "default": "transport_allowance"
         },
         {
             "fieldname": "no_file_emp_field_other_allowance",
             "fieldtype": "Data",
             "label": "Other Allowance Field",
-            "default": "custom_other_allowance_per_contract"
+            "default": "food_allowance"
         },
 
         {

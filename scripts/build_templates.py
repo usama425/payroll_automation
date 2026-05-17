@@ -50,10 +50,13 @@ def base_template(template_name, sheet_name, header_row, notes, column_map,
         "gosi_rate_saudi": 9.75,
         "gosi_rate_non_saudi": 0.0,
         "output_format_override": "Default (37-column RSG-Malqa)",
-        "no_file_emp_field_basic": "custom_basic_per_contract",
-        "no_file_emp_field_housing": "custom_housing_per_contract",
-        "no_file_emp_field_transportation": "custom_transportation_per_contract",
-        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        # Real Employee fields confirmed via SQL: the Salary Structure formula
+        # pulls Housing/Transport/Food from these; Basic = SSA.base which
+        # tracks Employee.basic_salary.
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
         "notes": f"<p>Auto-installed seed template. {notes}</p>",
         "column_map": column_map,
     }
@@ -364,8 +367,11 @@ FIXTURES_PATH = (
 with open(FIXTURES_PATH) as fh:
     existing = json.load(fh)
 
-# Preserve existing 3 + append all 19 new ones
-combined = existing + new_templates
+# Idempotent: keep ONLY the three hand-written originals as the base, then
+# (re)append the generated set. Re-running this script must not duplicate.
+ORIGINALS = {"RSG Misk School", "RSG Malqa", "Misk Sport"}
+base = [t for t in existing if t.get("template_name") in ORIGINALS]
+combined = base + new_templates
 
 # Strip None values from column_index_fallback for clean JSON
 for tpl in combined:
@@ -376,6 +382,6 @@ for tpl in combined:
 with open(FIXTURES_PATH, "w") as fh:
     json.dump(combined, fh, indent=4, ensure_ascii=False)
 
-print(f"Wrote {len(combined)} templates ({len(existing)} existing + {len(new_templates)} new):")
+print(f"Wrote {len(combined)} templates ({len(base)} originals + {len(new_templates)} generated):")
 for t in combined:
     print(f"  - {t['template_name']}")
