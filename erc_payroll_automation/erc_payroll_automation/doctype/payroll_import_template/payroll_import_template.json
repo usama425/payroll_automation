@@ -12,6 +12,7 @@
         "column_break_identity",
         "customer",
         "project",
+        "salary_structure",
         "section_location",
         "location_strategy",
         "location_field_on_employee",
@@ -83,6 +84,13 @@
             "options": "Project",
             "in_list_view": 1,
             "description": "Fill in after install. Required when a Run uses this Template."
+        },
+        {
+            "fieldname": "salary_structure",
+            "fieldtype": "Link",
+            "label": "Salary Structure",
+            "options": "Salary Structure",
+            "description": "Salary Structure assigned to this template's employees when the Payroll Posting Run creates/updates a Salary Structure Assignment. Set this per template (e.g. 'Riyadh Schools', 'Arabian Center'). Required before posting payroll from this template."
         },
 
         {
