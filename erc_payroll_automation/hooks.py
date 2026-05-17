@@ -36,7 +36,24 @@ fixtures = [
     {
         "dt": "Payroll Import Template",
         "filters": [
-            ["name", "in", ["RSG Misk School", "RSG Malqa", "Misk Sport"]]
+            [
+                "name",
+                "in",
+                [
+                    # Original three
+                    "RSG Misk School", "RSG Malqa", "Misk Sport",
+                    # Independent customers
+                    "Arabian Center", "Riyadh School", "JCD",
+                    "Direct FN", "Yamama (YCC)", "Cummins",
+                    # AP Hashim — one per location
+                    "AP Hashim - AMJAD", "AP Hashim - Damam",
+                    "AP Hashim - HO", "AP Hashim - JEDDAH-2",
+                    "AP Hashim - JUBAIL", "AP Hashim - RIYADH2",
+                    # RSG sub-projects (added in this push)
+                    "RSG Eli", "RSG Football Academy", "RSG Nursery",
+                    "RSG Khuzam", "RSG HQ", "RSG (Main)", "RSG Hittin",
+                ],
+            ]
         ],
     },
     {

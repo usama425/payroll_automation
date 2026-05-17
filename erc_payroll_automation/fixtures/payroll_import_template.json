@@ -15,27 +15,131 @@
         "output_format_override": "Default (37-column RSG-Malqa)",
         "notes": "<p>Auto-installed seed template. Fill in Customer + Project + Filter by Work Location before first use.</p>",
         "column_map": [
-            {"doctype": "Payroll Import Column Map", "target_field": "raw_name",                            "source_column_header": "Name",                  "transform": "trim_whitespace",       "is_required": 1},
-            {"doctype": "Payroll Import Column Map", "target_field": "raw_id_value",                        "source_column_header": "ID/Iqama/ passprot",    "transform": "trim_whitespace",       "is_required": 1},
-            {"doctype": "Payroll Import Column Map", "target_field": "raw_iban",                            "source_column_header": "IBAN/ Account number",  "transform": "iban_normalize"},
-            {"doctype": "Payroll Import Column Map", "target_field": "raw_nationality",                     "source_column_header": "Nationality",           "transform": "nationality_normalize"},
-            {"doctype": "Payroll Import Column Map", "target_field": "basic_per_contract",                  "source_column_header": "Basic per contract",    "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "working_days",                        "source_column_header": "Working Days",          "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "basic_per_working_days",              "source_column_header": "Baisc",                 "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "housing_per_working_days",            "source_column_header": "Housing",               "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "transportation_per_working_days",     "source_column_header": "Transportaion",         "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "other_allowance_per_working_days",    "source_column_header": "Other Allowances",      "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "total_per_contract",                  "source_column_header": "Total Salary",          "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "overtime",                            "source_column_header": "Overtime",              "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "other_income",                        "source_column_header": "Other Income",          "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "gosi_from_file",                      "source_column_header": "GOSI Contribution",     "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "deductions",                          "source_column_header": "Deductions",            "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "net_salary_from_file",                "source_column_header": "Emp Net Salary",        "transform": "to_float"}
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "ID/Iqama/ passprot",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "IBAN/ Account number",
+                "transform": "iban_normalize"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_nationality",
+                "source_column_header": "Nationality",
+                "transform": "nationality_normalize"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "Basic per contract",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "Working Days",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Baisc",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "source_column_header": "Housing",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "transportation_per_working_days",
+                "source_column_header": "Transportaion",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Other Allowances",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "total_per_contract",
+                "source_column_header": "Total Salary",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Overtime",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Other Income",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "GOSI Contribution",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Deductions",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Emp Net Salary",
+                "transform": "to_float"
+            }
         ],
         "validation_rules": [
-            {"doctype": "Payroll Import Validation Rule", "is_active": 1, "field_name": "raw_id_value",        "rule_type": "non_empty", "severity": "Error",   "message": "Iqama/Passport missing"},
-            {"doctype": "Payroll Import Validation Rule", "is_active": 1, "field_name": "raw_iban",            "rule_type": "non_empty", "severity": "Warning", "message": "IBAN missing"},
-            {"doctype": "Payroll Import Validation Rule", "is_active": 1, "field_name": "total_per_contract",  "rule_type": "min_value", "parameter": "0", "severity": "Error", "message": "Total salary must be >= 0"}
+            {
+                "doctype": "Payroll Import Validation Rule",
+                "is_active": 1,
+                "field_name": "raw_id_value",
+                "rule_type": "non_empty",
+                "severity": "Error",
+                "message": "Iqama/Passport missing"
+            },
+            {
+                "doctype": "Payroll Import Validation Rule",
+                "is_active": 1,
+                "field_name": "raw_iban",
+                "rule_type": "non_empty",
+                "severity": "Warning",
+                "message": "IBAN missing"
+            },
+            {
+                "doctype": "Payroll Import Validation Rule",
+                "is_active": 1,
+                "field_name": "total_per_contract",
+                "rule_type": "min_value",
+                "parameter": "0",
+                "severity": "Error",
+                "message": "Total salary must be >= 0"
+            }
         ]
     },
     {
@@ -54,30 +158,149 @@
         "output_format_override": "Default (37-column RSG-Malqa)",
         "notes": "<p>Auto-installed seed template. Fill in Customer + Project + Filter by Work Location before first use.</p><p>NOTE: This file has duplicate headers ('Baisc', 'Housing', 'Transportaion', 'Other Allowances', 'Total Salary') for per-contract vs per-working-days columns. The column map uses explicit column indexes (column_index_fallback) for the working-days set since header lookup always picks the first match.</p>",
         "column_map": [
-            {"doctype": "Payroll Import Column Map", "target_field": "raw_name",                         "source_column_header": "Name",                "transform": "trim_whitespace",       "is_required": 1},
-            {"doctype": "Payroll Import Column Map", "target_field": "raw_id_value",                     "source_column_header": "ID/Iqama/ passprot",  "transform": "trim_whitespace",       "is_required": 1},
-            {"doctype": "Payroll Import Column Map", "target_field": "raw_iban",                         "source_column_header": "IBAN/ Account number","transform": "iban_normalize"},
-            {"doctype": "Payroll Import Column Map", "target_field": "raw_nationality",                  "source_column_header": "Notionality",         "transform": "nationality_normalize"},
-            {"doctype": "Payroll Import Column Map", "target_field": "working_days",                     "source_column_header": "Working Days",        "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "basic_per_contract",               "source_column_header": "Baisc",               "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "housing_per_contract",             "source_column_header": "Housing",             "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "transportation_per_contract",      "source_column_header": "Transportaion",       "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "other_allowance_per_contract",     "source_column_header": "Other Allowances",    "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "basic_per_working_days",           "column_index_fallback": 14,                    "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "housing_per_working_days",         "column_index_fallback": 15,                    "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "transportation_per_working_days",  "column_index_fallback": 16,                    "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "other_allowance_per_working_days", "column_index_fallback": 17,                    "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "total_per_contract",               "column_index_fallback": 19,                    "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "overtime",                         "source_column_header": "Overtime",            "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "other_income",                     "source_column_header": "Other Income",        "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "gosi_from_file",                   "source_column_header": "GOSI Contribution",   "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "deductions",                       "source_column_header": "Deductions",          "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "net_salary_from_file",             "source_column_header": "Emp Net Salary",      "transform": "to_float"}
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "ID/Iqama/ passprot",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "IBAN/ Account number",
+                "transform": "iban_normalize"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_nationality",
+                "source_column_header": "Notionality",
+                "transform": "nationality_normalize"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "Working Days",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "Baisc",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_contract",
+                "source_column_header": "Housing",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "transportation_per_contract",
+                "source_column_header": "Transportaion",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_contract",
+                "source_column_header": "Other Allowances",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "column_index_fallback": 14,
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "column_index_fallback": 15,
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "transportation_per_working_days",
+                "column_index_fallback": 16,
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "column_index_fallback": 17,
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "total_per_contract",
+                "column_index_fallback": 19,
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Overtime",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Other Income",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "GOSI Contribution",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Deductions",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Emp Net Salary",
+                "transform": "to_float"
+            }
         ],
         "validation_rules": [
-            {"doctype": "Payroll Import Validation Rule", "is_active": 1, "field_name": "raw_id_value",       "rule_type": "non_empty", "severity": "Error",   "message": "Iqama/Passport missing"},
-            {"doctype": "Payroll Import Validation Rule", "is_active": 1, "field_name": "raw_iban",           "rule_type": "non_empty", "severity": "Warning", "message": "IBAN missing"},
-            {"doctype": "Payroll Import Validation Rule", "is_active": 1, "field_name": "total_per_contract", "rule_type": "min_value", "parameter": "0", "severity": "Error", "message": "Total salary must be >= 0"}
+            {
+                "doctype": "Payroll Import Validation Rule",
+                "is_active": 1,
+                "field_name": "raw_id_value",
+                "rule_type": "non_empty",
+                "severity": "Error",
+                "message": "Iqama/Passport missing"
+            },
+            {
+                "doctype": "Payroll Import Validation Rule",
+                "is_active": 1,
+                "field_name": "raw_iban",
+                "rule_type": "non_empty",
+                "severity": "Warning",
+                "message": "IBAN missing"
+            },
+            {
+                "doctype": "Payroll Import Validation Rule",
+                "is_active": 1,
+                "field_name": "total_per_contract",
+                "rule_type": "min_value",
+                "parameter": "0",
+                "severity": "Error",
+                "message": "Total salary must be >= 0"
+            }
         ]
     },
     {
@@ -96,27 +319,2325 @@
         "output_format_override": "Default (37-column RSG-Malqa)",
         "notes": "<p>Auto-installed seed template. Fill in Customer + Project + Filter by Work Location before first use.</p>",
         "column_map": [
-            {"doctype": "Payroll Import Column Map", "target_field": "raw_name",                         "source_column_header": "Name",                "transform": "trim_whitespace",       "is_required": 1},
-            {"doctype": "Payroll Import Column Map", "target_field": "raw_id_value",                     "source_column_header": "ID/Iqama/ passprot",  "transform": "trim_whitespace",       "is_required": 1},
-            {"doctype": "Payroll Import Column Map", "target_field": "raw_iban",                         "source_column_header": "IBAN/ Account number","transform": "iban_normalize"},
-            {"doctype": "Payroll Import Column Map", "target_field": "raw_nationality",                  "source_column_header": "Nationlity",          "transform": "nationality_normalize"},
-            {"doctype": "Payroll Import Column Map", "target_field": "basic_per_contract",               "source_column_header": "Basic per contract",  "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "working_days",                     "source_column_header": "Working Days",        "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "basic_per_working_days",           "source_column_header": "Baisc",               "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "housing_per_working_days",         "source_column_header": "Housing",             "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "transportation_per_working_days",  "source_column_header": "Transportaion",       "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "other_allowance_per_working_days", "source_column_header": "Other Allowances",   "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "total_per_contract",               "source_column_header": "Total Salary",        "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "overtime",                         "source_column_header": "Overtime",            "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "other_income",                     "source_column_header": "Other Income",        "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "gosi_from_file",                   "source_column_header": "GOSI Contribution",   "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "deductions",                       "source_column_header": "Deductions",          "transform": "to_float"},
-            {"doctype": "Payroll Import Column Map", "target_field": "net_salary_from_file",             "source_column_header": "Emp Net Salary",      "transform": "to_float"}
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "ID/Iqama/ passprot",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "IBAN/ Account number",
+                "transform": "iban_normalize"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_nationality",
+                "source_column_header": "Nationlity",
+                "transform": "nationality_normalize"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "Basic per contract",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "Working Days",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Baisc",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "source_column_header": "Housing",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "transportation_per_working_days",
+                "source_column_header": "Transportaion",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Other Allowances",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "total_per_contract",
+                "source_column_header": "Total Salary",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Overtime",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Other Income",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "GOSI Contribution",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Deductions",
+                "transform": "to_float"
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Emp Net Salary",
+                "transform": "to_float"
+            }
         ],
         "validation_rules": [
-            {"doctype": "Payroll Import Validation Rule", "is_active": 1, "field_name": "raw_id_value",       "rule_type": "non_empty", "severity": "Error",   "message": "Iqama/Passport missing"},
-            {"doctype": "Payroll Import Validation Rule", "is_active": 1, "field_name": "raw_iban",           "rule_type": "non_empty", "severity": "Warning", "message": "IBAN missing"},
-            {"doctype": "Payroll Import Validation Rule", "is_active": 1, "field_name": "total_per_contract", "rule_type": "min_value", "parameter": "0", "severity": "Error", "message": "Total salary must be >= 0"}
+            {
+                "doctype": "Payroll Import Validation Rule",
+                "is_active": 1,
+                "field_name": "raw_id_value",
+                "rule_type": "non_empty",
+                "severity": "Error",
+                "message": "Iqama/Passport missing"
+            },
+            {
+                "doctype": "Payroll Import Validation Rule",
+                "is_active": 1,
+                "field_name": "raw_iban",
+                "rule_type": "non_empty",
+                "severity": "Warning",
+                "message": "IBAN missing"
+            },
+            {
+                "doctype": "Payroll Import Validation Rule",
+                "is_active": 1,
+                "field_name": "total_per_contract",
+                "rule_type": "min_value",
+                "parameter": "0",
+                "severity": "Error",
+                "message": "Total salary must be >= 0"
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "Arabian Center",
+        "template_name": "Arabian Center",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "PAYROLL SHEET",
+        "header_row_index": 1,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. Customer file uses 29-column layout. Iqama on col 6, salary broken into BASIC / COLA / TRANSPORT / HOUSING / HTA / Other ALLOWANCE / GOSI. Fill in Customer + Project + Filter by Work Location before first use.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "EMP NAME",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "Iqama No.",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_nationality",
+                "source_column_header": "NATIONALITY",
+                "transform": "nationality_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "BASIC SALARY",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "NEW BASIC SALARY",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "source_column_header": "HOUSING ALLOWANCE",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "transportation_per_working_days",
+                "source_column_header": "TRANSPORT ALLOWANCE",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Other  ALLOWANCE",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "GOSI",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "total_per_contract",
+                "source_column_header": "GROSS SALARY",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "OT",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "DEDUCTION FOR ABSENT",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "NET SALARY",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "Riyadh School",
+        "template_name": "Riyadh School",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "Elite April 2026",
+        "header_row_index": 1,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. Bank-transfer style file: name / bank / IBAN / basic / housing / other / deductions / net / National_ID. No nationality column.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "EMPLOYEE_NAME",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "National_ID",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "ACCOUNT_NUMBER",
+                "transform": "iban_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "BASIC_SALARY",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "source_column_header": "HOUSING_ALLOWANCE",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "OTHER_EARNINGS",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "DEDUCTIONS",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "NET_PAY",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "JCD",
+        "template_name": "JCD",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "Sheet1",
+        "header_row_index": 1,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. Custom Employee ID (JCD-prefixed e.g. JCD204J) on col 1; map to Employee.employee_id_from_client. Multiple overtime + allowance columns aggregated by source file.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "Employee ID",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Employee Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_nationality",
+                "source_column_header": "Nationality",
+                "transform": "nationality_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Basic",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "source_column_header": "Housing Allowance",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "transportation_per_working_days",
+                "source_column_header": "Transportation Allowance",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Other Allowance",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "total_per_contract",
+                "source_column_header": "Total Salary",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Total Overtime Amount",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Total Allowance",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "GOSI Deduction[Em]",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Total Deduction",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Net Salary",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "Direct FN",
+        "template_name": "Direct FN",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "",
+        "header_row_index": 1,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. 13-column simple format: Iqama / Name / Bank / IBAN / total / basic / housing / other / deduction.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "Emp. ID. No.",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Emp. Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "Emp. Acc. No.",
+                "transform": "iban_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "total_per_contract",
+                "source_column_header": "Salary Amount",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Basic Salary",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "source_column_header": "Housing Allowance",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Other Earnings",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Deduction",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "Yamama (YCC)",
+        "template_name": "Yamama (YCC)",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "",
+        "header_row_index": 3,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. Arabic headers — column lookup by header text is unreliable. All fields use column_index_fallback. Layout: 1=ERP ID, 2=Name, 3=Hire date, 4=Iqama, 5=Basic, 6=COLA?, 7=Housing, 8=Transport, 9=Mobile, 10=Allowances, 11=Other, 12=Bonus, 13=Working days, 14=OT, 15-18=Deductions, 19=Misc deduction, 20=Net.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "",
+                "column_index_fallback": 4,
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "",
+                "column_index_fallback": 2,
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "",
+                "column_index_fallback": 5,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "source_column_header": "",
+                "column_index_fallback": 7,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "transportation_per_working_days",
+                "source_column_header": "",
+                "column_index_fallback": 8,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "",
+                "column_index_fallback": 11,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "",
+                "column_index_fallback": 13,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "",
+                "column_index_fallback": 14,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "",
+                "column_index_fallback": 18,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "hq_deductions",
+                "source_column_header": "",
+                "column_index_fallback": 17,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "",
+                "column_index_fallback": 20,
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "Cummins",
+        "template_name": "Cummins",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "",
+        "header_row_index": 4,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. Multi-row title bar in source; real headers on row 4. WWID is the custom employee ID; map to Employee.employee_id_from_client. Many allowance + retro columns aggregated by source.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "WWID",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Basic Salary",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "source_column_header": "Housing Allowance",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "transportation_per_working_days",
+                "source_column_header": "Transportation Allowance",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Total Other Allowances",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "total_per_contract",
+                "source_column_header": "TOTAL Salary & Allownces",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Total Overtime Pay",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Total Other payment",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Total Voluntary Deduction",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Grand Total(Net Pay)",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "AP Hashim - AMJAD",
+        "template_name": "AP Hashim - AMJAD",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "",
+        "header_row_index": 1,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. AP Hashim 72-column format. Set Filter by Work Location to the 'AMJAD' location. 'Code' is the customer-side numeric employee ID — map to Employee.employee_id_from_client.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "Code",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Employee Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "IBAN",
+                "transform": "iban_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "Basic Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "Working Days",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Worth Basic Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Worth Allowances (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Overtime (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Other Income (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "Social Security (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Total Deduction (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Net Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "AP Hashim - Damam",
+        "template_name": "AP Hashim - Damam",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "",
+        "header_row_index": 1,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. AP Hashim 72-column format. Set Filter by Work Location to the 'Damam' location. 'Code' is the customer-side numeric employee ID — map to Employee.employee_id_from_client.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "Code",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Employee Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "IBAN",
+                "transform": "iban_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "Basic Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "Working Days",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Worth Basic Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Worth Allowances (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Overtime (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Other Income (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "Social Security (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Total Deduction (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Net Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "AP Hashim - HO",
+        "template_name": "AP Hashim - HO",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "",
+        "header_row_index": 1,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. AP Hashim 72-column format. Set Filter by Work Location to the 'HO' location. 'Code' is the customer-side numeric employee ID — map to Employee.employee_id_from_client.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "Code",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Employee Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "IBAN",
+                "transform": "iban_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "Basic Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "Working Days",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Worth Basic Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Worth Allowances (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Overtime (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Other Income (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "Social Security (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Total Deduction (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Net Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "AP Hashim - JEDDAH-2",
+        "template_name": "AP Hashim - JEDDAH-2",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "",
+        "header_row_index": 1,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. AP Hashim 72-column format. Set Filter by Work Location to the 'JEDDAH-2' location. 'Code' is the customer-side numeric employee ID — map to Employee.employee_id_from_client.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "Code",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Employee Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "IBAN",
+                "transform": "iban_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "Basic Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "Working Days",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Worth Basic Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Worth Allowances (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Overtime (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Other Income (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "Social Security (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Total Deduction (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Net Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "AP Hashim - JUBAIL",
+        "template_name": "AP Hashim - JUBAIL",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "",
+        "header_row_index": 1,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. AP Hashim 72-column format. Set Filter by Work Location to the 'JUBAIL' location. 'Code' is the customer-side numeric employee ID — map to Employee.employee_id_from_client.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "Code",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Employee Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "IBAN",
+                "transform": "iban_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "Basic Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "Working Days",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Worth Basic Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Worth Allowances (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Overtime (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Other Income (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "Social Security (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Total Deduction (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Net Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "AP Hashim - RIYADH2",
+        "template_name": "AP Hashim - RIYADH2",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "",
+        "header_row_index": 1,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. AP Hashim 72-column format. Set Filter by Work Location to the 'RIYADH2' location. 'Code' is the customer-side numeric employee ID — map to Employee.employee_id_from_client.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "Code",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Employee Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "IBAN",
+                "transform": "iban_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "Basic Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "Working Days",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Worth Basic Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Worth Allowances (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Overtime (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Other Income (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "Social Security (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Total Deduction (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Net Salary (SAR)",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "RSG Eli",
+        "template_name": "RSG Eli",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "Sheet1",
+        "header_row_index": 2,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. RSG sub-project template. Layout uses 'Baisc' (typo) and 'Nationl' headers. Fill in Customer + Project + Filter by Work Location before first use.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "ID/Iqama/ passprot",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "IBAN/ Account number",
+                "transform": "iban_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_nationality",
+                "source_column_header": "Nationl",
+                "transform": "nationality_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "Basic per contract",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "Working Days",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Baisc",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "source_column_header": "Housing",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "transportation_per_working_days",
+                "source_column_header": "Transportaion",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Other Allowances",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "total_per_contract",
+                "source_column_header": "Total Salary",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Overtime",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Other Income",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "GOSI Contribution",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Deductions",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Emp Net Salary",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "RSG Football Academy",
+        "template_name": "RSG Football Academy",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "Sheet1",
+        "header_row_index": 2,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. RSG sub-project template. Layout uses 'Baisc' (typo) and 'Nationl' headers. Fill in Customer + Project + Filter by Work Location before first use.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "ID/Iqama/ passprot",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "IBAN/ Account number",
+                "transform": "iban_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_nationality",
+                "source_column_header": "Nationl",
+                "transform": "nationality_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "Basic per contract",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "Working Days",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Baisc",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "source_column_header": "Housing",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "transportation_per_working_days",
+                "source_column_header": "Transportaion",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Other Allowances",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "total_per_contract",
+                "source_column_header": "Total Salary",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Overtime",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Other Income",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "GOSI Contribution",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Deductions",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Emp Net Salary",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "RSG Nursery",
+        "template_name": "RSG Nursery",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "Sheet1",
+        "header_row_index": 2,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. RSG sub-project template. Layout uses 'Baisc' (typo) and 'Nationl' headers. Fill in Customer + Project + Filter by Work Location before first use.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "ID/Iqama/ passprot",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "IBAN/ Account number",
+                "transform": "iban_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_nationality",
+                "source_column_header": "Nationl",
+                "transform": "nationality_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "Basic per contract",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "Working Days",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Baisc",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "source_column_header": "Housing",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "transportation_per_working_days",
+                "source_column_header": "Transportaion",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Other Allowances",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "total_per_contract",
+                "source_column_header": "Total Salary",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Overtime",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Other Income",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "GOSI Contribution",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Deductions",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Emp Net Salary",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "RSG Khuzam",
+        "template_name": "RSG Khuzam",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "Sheet1",
+        "header_row_index": 2,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. RSG sub-project template. Layout uses 'Basic' (correct) and 'Nationality' headers. Fill in Customer + Project + Filter by Work Location before first use.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "ID/Iqama/ passprot",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "IBAN/ Account number",
+                "transform": "iban_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_nationality",
+                "source_column_header": "Nationality",
+                "transform": "nationality_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "Basic per contract",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "Working Days",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Basic",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "source_column_header": "Housing",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "transportation_per_working_days",
+                "source_column_header": "Transportaion",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Other Allowances",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "total_per_contract",
+                "source_column_header": "Total Salary",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Overtime",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Other Income",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "GOSI Contribution",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Deductions",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Emp Net Salary",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "RSG HQ",
+        "template_name": "RSG HQ",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "Sheet1",
+        "header_row_index": 2,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. RSG sub-project template. Layout uses 'Basic' (correct) and 'Nationality' headers. Fill in Customer + Project + Filter by Work Location before first use.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "ID/Iqama/ passprot",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "IBAN/ Account number",
+                "transform": "iban_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_nationality",
+                "source_column_header": "Nationality",
+                "transform": "nationality_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "Basic per contract",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "Working Days",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Basic",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "source_column_header": "Housing",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "transportation_per_working_days",
+                "source_column_header": "Transportaion",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Other Allowances",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "total_per_contract",
+                "source_column_header": "Total Salary",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Overtime",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Other Income",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "GOSI Contribution",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Deductions",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Emp Net Salary",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "RSG (Main)",
+        "template_name": "RSG (Main)",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "Sheet1",
+        "header_row_index": 2,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. RSG sub-project template. Layout uses 'Basic' (correct) and 'Nationality' headers. Fill in Customer + Project + Filter by Work Location before first use.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "ID/Iqama/ passprot",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "IBAN/ Account number",
+                "transform": "iban_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_nationality",
+                "source_column_header": "Nationality",
+                "transform": "nationality_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "Basic per contract",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "Working Days",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Basic",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "source_column_header": "Housing",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "transportation_per_working_days",
+                "source_column_header": "Transportaion",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Other Allowances",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "total_per_contract",
+                "source_column_header": "Total Salary",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Overtime",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Other Income",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "GOSI Contribution",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Deductions",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Emp Net Salary",
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
+        "name": "RSG Hittin",
+        "template_name": "RSG Hittin",
+        "is_active": 1,
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "Sheet1",
+        "header_row_index": 1,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "custom_basic_per_contract",
+        "no_file_emp_field_housing": "custom_housing_per_contract",
+        "no_file_emp_field_transportation": "custom_transportation_per_contract",
+        "no_file_emp_field_other_allowance": "custom_other_allowance_per_contract",
+        "notes": "<p>Auto-installed seed template. RSG Hittin uses an extended 38-column layout (no title row; includes Location + Bank Name + duplicate per-contract / per-working-day blocks). Per-WD columns are resolved via column_index_fallback because the headers are duplicated.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Name",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "ID/Iqama/ passprot",
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "IBAN/ Account number",
+                "transform": "iban_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_nationality",
+                "source_column_header": "Nationl",
+                "transform": "nationality_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_contract",
+                "source_column_header": "Basic per contract",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "working_days",
+                "source_column_header": "Working Days",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_contract",
+                "source_column_header": "",
+                "column_index_fallback": 15,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "transportation_per_contract",
+                "source_column_header": "",
+                "column_index_fallback": 16,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_contract",
+                "source_column_header": "",
+                "column_index_fallback": 17,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "",
+                "column_index_fallback": 19,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "source_column_header": "",
+                "column_index_fallback": 20,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "transportation_per_working_days",
+                "source_column_header": "",
+                "column_index_fallback": 21,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "",
+                "column_index_fallback": 22,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "total_per_contract",
+                "source_column_header": "",
+                "column_index_fallback": 24,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "overtime",
+                "source_column_header": "Overtime",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_income",
+                "source_column_header": "Other Income",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "gosi_from_file",
+                "source_column_header": "GOSI Contribution",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Deductions",
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Emp Net Salary",
+                "transform": "to_float",
+                "is_required": 0
+            }
         ]
     }
 ]
