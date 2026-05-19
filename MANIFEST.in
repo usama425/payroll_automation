@@ -15,4 +15,5 @@ recursive-include erc_payroll_automation *.png
 recursive-include erc_payroll_automation *.py
 recursive-include erc_payroll_automation *.svg
 recursive-include erc_payroll_automation *.txt
+recursive-include erc_payroll_automation *.xlsm
 recursive-exclude erc_payroll_automation *.pyc
