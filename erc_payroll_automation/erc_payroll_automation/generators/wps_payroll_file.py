@@ -352,7 +352,7 @@ def _get_employee_map(employee_names):
             "custom_iqama_number",
             "custom_id_number",
             "custom_iban",
-        ],
+        ] + _employee_iban_fieldnames(),
     )
     for chunk in _chunks(sorted(set(employee_names)), 500):
         for emp in frappe.get_all("Employee", filters=[["name", "in", chunk]], fields=fields):
@@ -450,7 +450,7 @@ def _save_workbook_and_link(wb, doctype, docname, fieldname, filename, label):
 def _safe_fields(doctype, fieldnames):
     meta = frappe.get_meta(doctype)
     out = []
-    for fieldname in fieldnames:
+    for fieldname in _dedupe(fieldnames):
         if fieldname == "name" or meta.has_field(fieldname):
             out.append(fieldname)
     return out
@@ -479,10 +479,31 @@ def _bank_name(slip, emp):
 
 def _iban(slip, emp):
     value = (
-        _first_value(slip, ("bank_account_no", "bank_ac_no"))
+        _first_value(emp, _employee_iban_fieldnames())
         or _first_value(emp, ("iban", "custom_iban", "bank_ac_no", "bank_account_no"))
+        or _first_value(slip, ("bank_account_no", "bank_ac_no"))
     )
-    return "".join(_clean_text(value).split()).upper()
+    return _clean_iban(value)
+
+
+def _employee_iban_fieldnames():
+    exact = []
+    bank_account = []
+    try:
+        fields = frappe.get_meta("Employee").fields
+    except Exception:
+        return []
+    for df in fields:
+        fieldname = getattr(df, "fieldname", None)
+        if not fieldname:
+            continue
+        label = getattr(df, "label", None) or ""
+        key = _field_key(f"{fieldname} {label}")
+        if "iban" in key:
+            exact.append(fieldname)
+        elif "bank" in key and ("account" in key or "acno" in key):
+            bank_account.append(fieldname)
+    return _dedupe(exact + bank_account)
 
 
 def _employee_number(slip, emp, fallback):
@@ -526,6 +547,10 @@ def _clean_text(value):
     if value is None:
         return ""
     return str(value).strip()
+
+
+def _clean_iban(value):
+    return "".join(char for char in _clean_text(value) if char.isalnum()).upper()
 
 
 def _clean_employee_name(value):
@@ -619,3 +644,18 @@ def _chunks(values, size):
 
 def _norm(value):
     return " ".join(str(value or "").strip().lower().split())
+
+
+def _field_key(value):
+    return "".join(char for char in str(value or "").strip().lower() if char.isalnum())
+
+
+def _dedupe(values):
+    out = []
+    seen = set()
+    for value in values or []:
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        out.append(value)
+    return out
