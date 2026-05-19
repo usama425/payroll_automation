@@ -238,8 +238,22 @@ def _build_wps_rows(run, slips):
         other_earnings = round(gross_pay - basic - housing, 2)
         raw_employee_name = slip.get("employee_name") or emp.get("employee_name") or ""
         clean_employee_name = _clean_employee_name(raw_employee_name)
-        iban = _iban(emp)
+        iban = _iban(slip, emp)
         iban_error = _iban_error(iban)
+        if gross_pay and not basic:
+            warning_lines.append(
+                "{0}: Basic component was not detected. Earnings found: {1}".format(
+                    raw_employee_name or employee_id,
+                    _component_names_for_log(earnings),
+                )
+            )
+        if gross_pay and not housing:
+            warning_lines.append(
+                "{0}: Housing component was not detected. Earnings found: {1}".format(
+                    raw_employee_name or employee_id,
+                    _component_names_for_log(earnings),
+                )
+            )
 
         rec = by_employee.setdefault(
             employee_id,
@@ -466,12 +480,15 @@ def _pick_component_total(components, wanted_keys):
 
 def _bank_name(slip, emp):
     raw_bank = _first_value(slip, ("bank_name",)) or _first_value(emp, ("bank_name",))
-    iban = _iban(emp)
+    iban = _iban(slip, emp)
     return bank_display_for(raw_bank, iban) or raw_bank or ""
 
 
-def _iban(emp):
-    value = _first_value(emp, ("iban", "custom_iban", "bank_ac_no", "bank_account_no"))
+def _iban(slip, emp):
+    value = (
+        _first_value(slip, ("bank_account_no", "bank_ac_no"))
+        or _first_value(emp, ("iban", "custom_iban", "bank_ac_no", "bank_account_no"))
+    )
     return "".join(_clean_text(value).split()).upper()
 
 
@@ -520,10 +537,16 @@ def _clean_text(value):
 
 def _clean_employee_name(value):
     cleaned = "".join(
-        char if char.isalnum() or char.isspace() else " "
+        char if char.isascii() and (char.isalnum() or char.isspace()) else " "
         for char in _clean_text(value)
     )
     return " ".join(cleaned.split())
+
+
+def _component_names_for_log(components):
+    if not components:
+        return "none"
+    return ", ".join(sorted(components.keys()))
 
 
 def _iban_error(iban):

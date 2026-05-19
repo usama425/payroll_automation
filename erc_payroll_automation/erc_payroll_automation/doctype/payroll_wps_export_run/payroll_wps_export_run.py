@@ -11,10 +11,6 @@ class PayrollWPSExportRun(Document):
                 frappe.throw(_("Payroll Period End cannot be before Period Start"))
         if not self.posting_date and self.payroll_period_end:
             self.posting_date = self.payroll_period_end
-        if not self.basic_salary_component:
-            self.basic_salary_component = "Basic Salary"
-        if not self.housing_allowance_component:
-            self.housing_allowance_component = "Housing Allowance"
 
 
 @frappe.whitelist()

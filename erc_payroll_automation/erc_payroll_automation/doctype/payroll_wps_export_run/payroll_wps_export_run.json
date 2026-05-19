@@ -121,14 +121,13 @@
             "fieldtype": "Section Break",
             "label": "Component Mapping",
             "collapsible": 1,
-            "description": "Other Earnings are calculated as Gross Pay minus Basic minus Housing. Deductions use Salary Slip Total Deduction."
+            "description": "Optional text names for Salary Slip earning components. Other Earnings are calculated as Gross Pay minus Basic minus Housing. Deductions use Salary Slip Total Deduction."
         },
         {
             "fieldname": "basic_salary_component",
-            "fieldtype": "Link",
-            "label": "Basic Salary Component",
-            "options": "Salary Component",
-            "default": "Basic Salary"
+            "fieldtype": "Data",
+            "label": "Basic Salary Component Name",
+            "description": "Leave blank to auto-detect common names such as Basic Salary or Basic."
         },
         {
             "fieldname": "column_break_component_mapping",
@@ -136,10 +135,9 @@
         },
         {
             "fieldname": "housing_allowance_component",
-            "fieldtype": "Link",
-            "label": "Housing Allowance Component",
-            "options": "Salary Component",
-            "default": "Housing Allowance"
+            "fieldtype": "Data",
+            "label": "Housing Allowance Component Name",
+            "description": "Leave blank to auto-detect common names such as Housing Allowance, Housing, House Rent Allowance, or HRA."
         },
         {
             "fieldname": "section_output",
