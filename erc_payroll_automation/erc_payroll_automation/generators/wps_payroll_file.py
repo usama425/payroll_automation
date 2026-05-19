@@ -9,6 +9,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, getdate, now_datetime
 from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
 
 from ..parser.bank_codes import bank_display_for
 
@@ -17,6 +18,7 @@ TEMPLATE_FILENAME = "psh_wps_payroll_upload_template.xlsm"
 SHEET_NAME = "Sheet1"
 DATA_START_ROW = 8
 MAX_TEMPLATE_DATA_ROW = 65243
+VALIDATION_FILL = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
 
 BASIC_COMPONENT_ALIASES = ("Basic Salary", "Basic")
 HOUSING_COMPONENT_ALIASES = (
@@ -25,10 +27,6 @@ HOUSING_COMPONENT_ALIASES = (
     "House Rent Allowance",
     "HRA",
 )
-
-
-class WPSExportValidationError(Exception):
-    pass
 
 
 def generate_wps_file(run_name: str, user: str = None):
@@ -52,16 +50,11 @@ def generate_wps_file(run_name: str, user: str = None):
                 "Department, and payroll period."
             ))
 
-        rows, warning_lines, iban_error_lines = _build_wps_rows(run, slips)
+        rows, warning_lines = _build_wps_rows(run, slips)
         if not rows:
             frappe.throw(_("No employees could be prepared for the WPS file."))
         if len(rows) > (MAX_TEMPLATE_DATA_ROW - DATA_START_ROW + 1):
             frappe.throw(_("Too many employees for the WPS template: {0}").format(len(rows)))
-        if iban_error_lines:
-            raise WPSExportValidationError(
-                "Cannot generate WPS file until these Employee IBAN values are fixed:\n"
-                + "\n".join(iban_error_lines)
-            )
 
         wb = _build_workbook(rows)
         project_label = _project_label(run.project)
@@ -112,12 +105,8 @@ def generate_wps_file(run_name: str, user: str = None):
             message=f"employees={len(rows)} slips={len(slips)} file_url={file_url!r}",
         )
 
-    except Exception as exc:
-        log_message = (
-            str(exc)
-            if isinstance(exc, WPSExportValidationError)
-            else frappe.get_traceback()
-        )
+    except Exception:
+        log_message = frappe.get_traceback()
         frappe.log_error(
             title=f"Payroll WPS generate FAILED: {run_name}",
             message=frappe.get_traceback(),
@@ -223,7 +212,6 @@ def _build_wps_rows(run, slips):
 
     by_employee = {}
     warning_lines = []
-    iban_error_lines = []
     for slip in slips:
         employee_id = slip.get("employee")
         emp = employees.get(employee_id) or {}
@@ -264,7 +252,7 @@ def _build_wps_rows(run, slips):
                 "raw_employee_name": raw_employee_name,
                 "employee_number": _employee_number(slip, emp, employee_id),
                 "national_id": _national_id(emp),
-                "iban_error": iban_error,
+                "validation_issues": [],
                 "basic": 0.0,
                 "housing": 0.0,
                 "other_earnings": 0.0,
@@ -273,6 +261,8 @@ def _build_wps_rows(run, slips):
                 "salary_slips": [],
             },
         )
+        if iban_error and iban_error not in rec["validation_issues"]:
+            rec["validation_issues"].append(f"IBAN issue: {iban_error}")
         rec["basic"] = round(rec["basic"] + basic, 2)
         rec["housing"] = round(rec["housing"] + housing, 2)
         rec["other_earnings"] = round(rec["other_earnings"] + other_earnings, 2)
@@ -290,6 +280,7 @@ def _build_wps_rows(run, slips):
         if not rec["national_id"]:
             missing.append("national ID")
         if missing:
+            rec["validation_issues"].append("Missing " + ", ".join(missing))
             warning_lines.append(
                 "{0}: missing {1}".format(
                     rec["employee_name"] or employee_id,
@@ -303,12 +294,11 @@ def _build_wps_rows(run, slips):
                     rec["employee_name"] or employee_id,
                 )
             )
-        if rec["iban_error"]:
-            iban_error_lines.append(
-                "{0}: {1} (Employee IBAN: {2})".format(
+        if rec["validation_issues"]:
+            warning_lines.append(
+                "{0}: validation issue(s): {1}".format(
                     rec["employee_name"] or employee_id,
-                    rec["iban_error"],
-                    rec["iban"] or "blank",
+                    "; ".join(rec["validation_issues"]),
                 )
             )
         if len(rec["salary_slips"]) > 1:
@@ -321,7 +311,7 @@ def _build_wps_rows(run, slips):
             )
         rows.append(rec)
 
-    return rows, warning_lines, iban_error_lines
+    return rows, warning_lines
 
 
 def _get_salary_detail_totals(slip_names):
@@ -388,8 +378,11 @@ def _build_workbook(rows):
         ws.cell(row=row_idx, column=10, value=row["deductions"])
         ws.cell(row=row_idx, column=11).value = None
         ws.cell(row=row_idx, column=12).value = None
-        ws.cell(row=row_idx, column=13).value = None
+        ws.cell(row=row_idx, column=13, value="; ".join(row.get("validation_issues") or []))
         ws.cell(row=row_idx, column=14, value=row["department"])
+        if row.get("validation_issues"):
+            for col_idx in range(1, 15):
+                ws.cell(row=row_idx, column=col_idx).fill = VALIDATION_FILL
 
     # Keep the row after the generated data blank while preserving its formula.
     first_blank_row = DATA_START_ROW + len(rows)
