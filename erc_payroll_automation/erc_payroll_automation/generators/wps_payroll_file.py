@@ -221,6 +221,8 @@ def _build_wps_rows(run, slips):
 
         basic = _pick_component_total(earnings, basic_keys)
         housing = _pick_component_total(earnings, housing_keys)
+        basic_found = _has_component(earnings, basic_keys)
+        housing_found = _has_component(earnings, housing_keys)
         gross_pay = flt(slip.get("gross_pay")) or sum(earnings.values())
         deductions = flt(slip.get("total_deduction")) or sum(deductions_by_component.values())
         other_earnings = round(gross_pay - basic - housing, 2)
@@ -228,14 +230,14 @@ def _build_wps_rows(run, slips):
         clean_employee_name = _clean_employee_name(raw_employee_name)
         iban = _iban(slip, emp)
         iban_error = _iban_error(iban)
-        if gross_pay and not basic:
+        if gross_pay and not basic_found:
             warning_lines.append(
                 "{0}: Basic component was not detected. Earnings found: {1}".format(
                     raw_employee_name or employee_id,
                     _component_names_for_log(earnings),
                 )
             )
-        if gross_pay and not housing:
+        if gross_pay and not housing_found:
             warning_lines.append(
                 "{0}: Housing component was not detected. Earnings found: {1}".format(
                     raw_employee_name or employee_id,
@@ -471,6 +473,10 @@ def _pick_component_total(components, wanted_keys):
     return round(sum(amount for key, amount in components.items() if key in wanted_keys), 2)
 
 
+def _has_component(components, wanted_keys):
+    return any(key in wanted_keys for key in components)
+
+
 def _bank_name(slip, emp):
     raw_bank = _first_value(slip, ("bank_name",)) or _first_value(emp, ("bank_name",))
     iban = _iban(slip, emp)
@@ -507,12 +513,15 @@ def _employee_iban_fieldnames():
 
 
 def _employee_number(slip, emp, fallback):
-    return (
-        _first_value(slip, ("employee_no", "employee_number"))
-        or _first_value(emp, ("employee_number", "custom_employee_number"))
-        or fallback
-        or ""
-    )
+    for value in (
+        _first_value(slip, ("employee_no", "employee_number")),
+        _first_value(emp, ("employee_number", "custom_employee_number")),
+        fallback,
+    ):
+        cleaned = _clean_employee_number(value)
+        if cleaned:
+            return cleaned
+    return ""
 
 
 def _national_id(emp):
@@ -561,6 +570,16 @@ def _clean_employee_name(value):
     return " ".join(cleaned.split())
 
 
+def _clean_employee_number(value):
+    text = _clean_text(value)
+    if not text:
+        return ""
+    digits = "".join(char for char in text if char.isdigit())
+    if not digits:
+        return ""
+    return str(int(digits))
+
+
 def _component_names_for_log(components):
     if not components:
         return "none"
@@ -574,8 +593,12 @@ def _iban_error(iban):
         return "IBAN must be 24 characters without spaces"
     if not iban.startswith("SA"):
         return "Saudi IBAN must start with SA"
-    if not iban[2:].isdigit():
-        return "Saudi IBAN must be SA followed by 22 digits"
+    if not iban[2:4].isdigit():
+        return "IBAN check digits must be numeric"
+    if not iban[4:6].isdigit():
+        return "Saudi IBAN bank code must be numeric"
+    if not iban[6:].isalnum():
+        return "Saudi IBAN account number must contain letters/numbers only"
     if not _passes_iban_checksum(iban):
         return "IBAN checksum is invalid"
     return ""
