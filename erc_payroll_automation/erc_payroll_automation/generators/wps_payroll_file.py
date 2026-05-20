@@ -19,6 +19,7 @@ SHEET_NAME = "Sheet1"
 DATA_START_ROW = 8
 MAX_TEMPLATE_DATA_ROW = 65243
 VALIDATION_FILL = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
+IQAMA_VALIDATION_FILL = PatternFill(start_color="D9EAF7", end_color="D9EAF7", fill_type="solid")
 
 BASIC_COMPONENT_ALIASES = ("Basic Salary", "Basic")
 HOUSING_COMPONENT_ALIASES = (
@@ -63,7 +64,7 @@ def generate_wps_file(run_name: str, user: str = None):
         filename = f"WPS Payroll - {project_label}"
         if department_label:
             filename += f" - {department_label}"
-        filename += f" - {period_label}.xlsm"
+        filename += f" - {period_label}.xlsx"
 
         file_url = _save_workbook_and_link(
             wb=wb,
@@ -214,6 +215,14 @@ def _build_wps_rows(run, slips):
     warning_lines = []
     for slip in slips:
         employee_id = slip.get("employee")
+        if _is_zero_net_pay(slip):
+            warning_lines.append(
+                "{0}: skipped because Net Pay is 0".format(
+                    slip.get("employee_name") or employee_id
+                )
+            )
+            continue
+
         emp = employees.get(employee_id) or {}
         detail = detail_totals.get(slip.name, {})
         earnings = detail.get("earnings", {})
@@ -224,12 +233,14 @@ def _build_wps_rows(run, slips):
         basic_found = _has_component(earnings, basic_keys)
         housing_found = _has_component(earnings, housing_keys)
         gross_pay = flt(slip.get("gross_pay")) or sum(earnings.values())
-        deductions = flt(slip.get("total_deduction")) or sum(deductions_by_component.values())
+        deductions = _deduction_amount(slip, gross_pay, deductions_by_component)
         other_earnings = round(gross_pay - basic - housing, 2)
         raw_employee_name = slip.get("employee_name") or emp.get("employee_name") or ""
         clean_employee_name = _clean_employee_name(raw_employee_name)
         iban = _iban(slip, emp)
         iban_error = _iban_error(iban)
+        national_id = _national_id(emp)
+        iqama_error = _iqama_error(national_id)
         if gross_pay and not basic_found:
             warning_lines.append(
                 "{0}: Basic component was not detected. Earnings found: {1}".format(
@@ -253,7 +264,8 @@ def _build_wps_rows(run, slips):
                 "employee_name": clean_employee_name,
                 "raw_employee_name": raw_employee_name,
                 "employee_number": _employee_number(slip, emp, employee_id),
-                "national_id": _national_id(emp),
+                "national_id": national_id,
+                "has_iqama_issue": False,
                 "validation_issues": [],
                 "basic": 0.0,
                 "housing": 0.0,
@@ -265,6 +277,9 @@ def _build_wps_rows(run, slips):
         )
         if iban_error and iban_error not in rec["validation_issues"]:
             rec["validation_issues"].append(f"IBAN issue: {iban_error}")
+        if iqama_error and iqama_error not in rec["validation_issues"]:
+            rec["validation_issues"].append(f"Iqama issue: {iqama_error}")
+            rec["has_iqama_issue"] = True
         rec["basic"] = round(rec["basic"] + basic, 2)
         rec["housing"] = round(rec["housing"] + housing, 2)
         rec["other_earnings"] = round(rec["other_earnings"] + other_earnings, 2)
@@ -363,7 +378,7 @@ def _get_employee_map(employee_names):
 
 
 def _build_workbook(rows):
-    wb = load_workbook(_template_path(), keep_vba=True, data_only=False)
+    wb = load_workbook(_template_path(), keep_vba=False, data_only=False)
     ws = wb[SHEET_NAME]
 
     for offset, row in enumerate(rows):
@@ -383,8 +398,9 @@ def _build_workbook(rows):
         ws.cell(row=row_idx, column=13, value="; ".join(row.get("validation_issues") or []))
         ws.cell(row=row_idx, column=14, value=row["department"])
         if row.get("validation_issues"):
+            fill = IQAMA_VALIDATION_FILL if row.get("has_iqama_issue") else VALIDATION_FILL
             for col_idx in range(1, 15):
-                ws.cell(row=row_idx, column=col_idx).fill = VALIDATION_FILL
+                ws.cell(row=row_idx, column=col_idx).fill = fill
 
     # Keep the row after the generated data blank while preserving its formula.
     first_blank_row = DATA_START_ROW + len(rows)
@@ -477,6 +493,26 @@ def _has_component(components, wanted_keys):
     return any(key in wanted_keys for key in components)
 
 
+def _deduction_amount(slip, gross_pay, deductions_by_component):
+    """Use Net Pay as the source of truth so loan repayments are included."""
+    net_pay = slip.get("net_pay")
+    if net_pay not in (None, ""):
+        return round(flt(gross_pay) - flt(net_pay), 2)
+
+    total_deduction = slip.get("total_deduction")
+    if total_deduction not in (None, ""):
+        return round(flt(total_deduction), 2)
+
+    return round(sum(deductions_by_component.values()), 2)
+
+
+def _is_zero_net_pay(slip):
+    net_pay = slip.get("net_pay")
+    if net_pay in (None, ""):
+        return False
+    return abs(flt(net_pay)) < 0.005
+
+
 def _bank_name(slip, emp):
     raw_bank = _first_value(slip, ("bank_name",)) or _first_value(emp, ("bank_name",))
     iban = _iban(slip, emp)
@@ -525,7 +561,7 @@ def _employee_number(slip, emp, fallback):
 
 
 def _national_id(emp):
-    return _first_value(
+    return _clean_digits(_first_value(
         emp,
         (
             "iqama_national_id",
@@ -534,7 +570,7 @@ def _national_id(emp):
             "custom_id_number",
             "passport_number",
         ),
-    ) or ""
+    ))
 
 
 def _department_value(slip, emp):
@@ -560,6 +596,10 @@ def _clean_text(value):
 
 def _clean_iban(value):
     return "".join(char for char in _clean_text(value) if char.isalnum()).upper()
+
+
+def _clean_digits(value):
+    return "".join(char for char in _clean_text(value) if char.isdigit())
 
 
 def _clean_employee_name(value):
@@ -601,6 +641,14 @@ def _iban_error(iban):
         return "Saudi IBAN account number must contain letters/numbers only"
     if not _passes_iban_checksum(iban):
         return "IBAN checksum is invalid"
+    return ""
+
+
+def _iqama_error(national_id):
+    if not national_id:
+        return "missing Iqama/National ID"
+    if len(national_id) != 10:
+        return "Iqama/National ID must be 10 digits"
     return ""
 
 
