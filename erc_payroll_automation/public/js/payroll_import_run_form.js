@@ -1,5 +1,7 @@
 frappe.ui.form.on('Payroll Import Run', {
     refresh: function(frm) {
+        _set_resolution_employee_query(frm);
+
         // ===== Action Buttons by Status =====
 
         if (frm.doc.status === 'Draft' && frm.doc.source_file && frm.doc.template) {
@@ -151,6 +153,21 @@ frappe.ui.form.on('Payroll Import Run', {
         }
     }
 });
+
+
+function _set_resolution_employee_query(frm) {
+    const table = frm.fields_dict.unmatched_source_rows;
+    if (!table || !table.grid) return;
+
+    table.grid.get_field('resolved_employee').get_query = function() {
+        return {
+            query: 'erc_payroll_automation.erc_payroll_automation.doctype.payroll_import_run.payroll_import_run.search_employees_for_resolution',
+            filters: {
+                run_name: frm.doc.name,
+            },
+        };
+    };
+}
 
 
 function _add_download_buttons(frm) {

@@ -3,6 +3,7 @@ import json
 import frappe
 from frappe.model.document import Document
 from frappe import _
+from frappe.desk.search import sanitize_searchfield
 from frappe.utils import getdate
 
 from ...parser_constants import NUMERIC_FIELDS
@@ -336,6 +337,66 @@ def reset_to_draft(run_name):
         "parse_error_log": "",
     }, update_modified=False)
     return {"status": "ok", "message": _("Reset. You can now Parse File again.")}
+
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def search_employees_for_resolution(doctype, txt, searchfield, start, page_len, filters):
+    """Employee lookup for unmatched-row resolution.
+
+    Accounts users can resolve payroll import rows without needing broad
+    Employee list access. The lookup is gated by write access to the parent run.
+    """
+    filters = filters or {}
+    run_name = filters.get("run_name")
+    if not run_name:
+        return []
+
+    run = frappe.get_doc("Payroll Import Run", run_name)
+    if not frappe.has_permission("Payroll Import Run", "write", doc=run):
+        frappe.throw(_("Not permitted to resolve rows for this Payroll Import Run"))
+
+    searchfield = sanitize_searchfield(searchfield or "name")
+    if searchfield not in {
+        "name",
+        "employee_name",
+        "iqama_national_id",
+        "passport_number",
+        "bank_ac_no",
+    }:
+        searchfield = "name"
+
+    like_txt = f"%{txt}%"
+    return frappe.db.sql(
+        f"""
+        SELECT
+            name,
+            employee_name,
+            iqama_national_id,
+            bank_ac_no
+        FROM `tabEmployee`
+        WHERE status = 'Active'
+          AND (
+              {searchfield} LIKE %(txt)s
+              OR name LIKE %(txt)s
+              OR employee_name LIKE %(txt)s
+              OR iqama_national_id LIKE %(txt)s
+              OR passport_number LIKE %(txt)s
+              OR bank_ac_no LIKE %(txt)s
+          )
+        ORDER BY
+            CASE WHEN name LIKE %(prefix)s THEN 0 ELSE 1 END,
+            employee_name ASC,
+            name ASC
+        LIMIT %(start)s, %(page_len)s
+        """,
+        {
+            "txt": like_txt,
+            "prefix": f"{txt}%",
+            "start": start,
+            "page_len": page_len,
+        },
+    )
 
 
 @frappe.whitelist()
