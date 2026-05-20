@@ -9,6 +9,7 @@
         "section_setup",
         "project",
         "department",
+        "work_location",
         "column_break_setup",
         "payroll_period_start",
         "payroll_period_end",
@@ -51,6 +52,13 @@
             "options": "Department",
             "in_list_view": 1,
             "description": "Optional. Leave blank to export the whole Project."
+        },
+        {
+            "fieldname": "work_location",
+            "fieldtype": "Link",
+            "label": "Work Location",
+            "options": "Work Location",
+            "description": "Optional. Filters employees by Employee.custom_location. Leave blank to export the whole Project."
         },
         {
             "fieldname": "column_break_setup",

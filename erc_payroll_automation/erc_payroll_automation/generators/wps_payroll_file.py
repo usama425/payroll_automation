@@ -48,7 +48,7 @@ def generate_wps_file(run_name: str, user: str = None):
         if not slips:
             frappe.throw(_(
                 "No submitted Salary Slips found for the selected Project, "
-                "Department, and payroll period."
+                "Department, Work Location, and payroll period."
             ))
 
         rows, warning_lines = _build_wps_rows(run, slips)
@@ -60,10 +60,13 @@ def generate_wps_file(run_name: str, user: str = None):
         wb = _build_workbook(rows)
         project_label = _project_label(run.project)
         department_label = _department_label(run.department)
+        work_location_label = _work_location_label(getattr(run, "work_location", None))
         period_label = _period_label(run.payroll_period_start, run.payroll_period_end)
         filename = f"WPS Payroll - {project_label}"
         if department_label:
             filename += f" - {department_label}"
+        if work_location_label:
+            filename += f" - {work_location_label}"
         filename += f" - {period_label}.xlsx"
 
         file_url = _save_workbook_and_link(
@@ -81,6 +84,8 @@ def generate_wps_file(run_name: str, user: str = None):
         ]
         if department_label:
             log_lines.append(f"Department: {department_label}")
+        if work_location_label:
+            log_lines.append(f"Work Location: {work_location_label}")
         if warning_lines:
             log_lines.append("")
             log_lines.append("Warnings:")
@@ -142,6 +147,11 @@ def _get_salary_slips(run):
     if run.department and slip_meta.has_field("department"):
         base_filters.append(["department", "=", run.department])
 
+    employee_names = _employees_for_scope(run, employee_meta)
+    employee_filter_needed = getattr(run, "work_location", None) or not slip_meta.has_field("project")
+    if employee_filter_needed and not employee_names:
+        return []
+
     fields = _safe_fields(
         "Salary Slip",
         [
@@ -166,23 +176,26 @@ def _get_salary_slips(run):
     slips_by_name = {}
 
     if slip_meta.has_field("project"):
-        for slip in frappe.get_all(
-            "Salary Slip",
-            filters=base_filters + [["project", "=", run.project]],
-            fields=fields,
-            order_by="employee_name asc, employee asc",
-        ):
-            slips_by_name[slip.name] = slip
+        filters = base_filters + [["project", "=", run.project]]
+        if getattr(run, "work_location", None):
+            for chunk in _chunks(employee_names, 500):
+                for slip in frappe.get_all(
+                    "Salary Slip",
+                    filters=filters + [["employee", "in", chunk]],
+                    fields=fields,
+                    order_by="employee_name asc, employee asc",
+                ):
+                    slips_by_name[slip.name] = slip
+        else:
+            for slip in frappe.get_all(
+                "Salary Slip",
+                filters=filters,
+                fields=fields,
+                order_by="employee_name asc, employee asc",
+            ):
+                slips_by_name[slip.name] = slip
     elif employee_meta.has_field("project"):
-        employee_filters = {"project": run.project}
-        if run.department and employee_meta.has_field("department"):
-            employee_filters["department"] = run.department
-        employees = frappe.get_all(
-            "Employee",
-            filters=employee_filters,
-            pluck="name",
-        )
-        for chunk in _chunks(employees, 500):
+        for chunk in _chunks(employee_names, 500):
             for slip in frappe.get_all(
                 "Salary Slip",
                 filters=base_filters + [["employee", "in", chunk]],
@@ -201,6 +214,22 @@ def _get_salary_slips(run):
         slips_by_name.values(),
         key=lambda d: ((d.get("employee_name") or ""), (d.get("employee") or ""), d.get("name")),
     )
+
+
+def _employees_for_scope(run, employee_meta):
+    filters = {}
+    if employee_meta.has_field("project"):
+        filters["project"] = run.project
+    if run.department and employee_meta.has_field("department"):
+        filters["department"] = run.department
+    if getattr(run, "work_location", None):
+        if not employee_meta.has_field("custom_location"):
+            frappe.throw(_("Employee.custom_location field is required to filter by Work Location"))
+        filters["custom_location"] = run.work_location
+
+    if not filters:
+        return []
+    return frappe.get_all("Employee", filters=filters, pluck="name")
 
 
 def _build_wps_rows(run, slips):
@@ -675,6 +704,19 @@ def _department_label(department):
     if not department:
         return ""
     return frappe.db.get_value("Department", department, "department_name") or department
+
+
+def _work_location_label(work_location):
+    if not work_location:
+        return ""
+    try:
+        meta = frappe.get_meta("Work Location")
+        for fieldname in ("location_name", "work_location_name", "title"):
+            if meta.has_field(fieldname):
+                return frappe.db.get_value("Work Location", work_location, fieldname) or work_location
+    except Exception:
+        pass
+    return work_location
 
 
 def _period_label(start_date, end_date):
