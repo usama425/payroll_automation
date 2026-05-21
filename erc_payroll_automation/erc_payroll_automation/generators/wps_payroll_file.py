@@ -27,7 +27,7 @@ HOUSING_COMPONENT_ALIASES = (
     "Housing",
     "House Rent Allowance",
     "HRA",
-)
+)    
 
 
 def generate_wps_file(run_name: str, user: str = None):
