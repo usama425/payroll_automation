@@ -7,10 +7,10 @@
     "engine": "InnoDB",
     "field_order": [
         "section_setup",
-        "template",
-        "customer",
         "project",
+        "customer",
         "filter_by_work_location",
+        "template",
         "column_break_setup",
         "payroll_period_start",
         "payroll_period_end",
@@ -34,36 +34,34 @@
             "label": "Setup"
         },
         {
-            "fieldname": "template",
+            "fieldname": "project",
             "fieldtype": "Link",
-            "label": "Template",
-            "options": "Payroll Import Template",
+            "label": "Project",
+            "options": "Project",
             "reqd": 1,
-            "description": "Template is used to scope employees (project + work location) and for the no-file Employee field names."
+            "in_list_view": 1,
+            "description": "Pick the project to generate the Elite sheet for. Base salary is read from the system Employee records of this project."
         },
         {
             "fieldname": "customer",
             "fieldtype": "Link",
             "label": "Customer",
             "options": "Customer",
-            "fetch_from": "template.customer",
-            "read_only": 1
-        },
-        {
-            "fieldname": "project",
-            "fieldtype": "Link",
-            "label": "Project",
-            "options": "Project",
-            "fetch_from": "template.project",
-            "read_only": 1
+            "fetch_from": "project.customer"
         },
         {
             "fieldname": "filter_by_work_location",
             "fieldtype": "Link",
             "label": "Work Location",
             "options": "Work Location",
-            "fetch_from": "template.filter_by_work_location",
-            "read_only": 1
+            "description": "Optional. Limit to employees whose custom_location matches this Work Location."
+        },
+        {
+            "fieldname": "template",
+            "fieldtype": "Link",
+            "label": "Template (optional)",
+            "options": "Payroll Import Template",
+            "description": "Optional. Only needed if this project's base-salary lives in non-standard Employee fields; otherwise the standard salary fields are used."
         },
         {
             "fieldname": "column_break_setup",

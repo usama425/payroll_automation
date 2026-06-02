@@ -32,6 +32,14 @@ def run_parse(run_name, user=None):
     template = frappe.get_doc("Payroll Import Template", run.template)
 
     try:
+        # Delta-mode projects (Datavolt, Airproducts): base salary from system,
+        # file supplies only earnings/deductions. Different parse path entirely.
+        from . import delta_parser
+        if delta_parser.is_delta_mode(template):
+            delta_parser.run_delta_parse(run, template)
+            frappe.db.commit()
+            return
+
         file_path = _resolve_attached_file_path(run.source_file)
         wb = load_workbook(file_path, data_only=True, read_only=True)
         sheet_name = template.sheet_name_override or _pick_first_data_sheet(wb)

@@ -19,6 +19,7 @@
         "column_break_location",
         "filter_by_work_location",
         "section_file_layout",
+        "input_mode",
         "sheet_name_override",
         "header_row_index",
         "column_break_file_layout",
@@ -132,6 +133,14 @@
             "fieldname": "section_file_layout",
             "fieldtype": "Section Break",
             "label": "Source File Layout"
+        },
+        {
+            "fieldname": "input_mode",
+            "fieldtype": "Select",
+            "label": "Input Mode",
+            "options": "Full from File\nDeltas (Datavolt)\nDeltas (Airproducts)",
+            "default": "Full from File",
+            "description": "Full from File = the customer file carries the complete salary breakdown (default, all existing projects). Deltas = base salary comes from system Employee data for ALL project employees, and the file only supplies variable earnings/deductions. Datavolt matches on Employee ID; Airproducts matches on IQAMA."
         },
         {
             "fieldname": "sheet_name_override",

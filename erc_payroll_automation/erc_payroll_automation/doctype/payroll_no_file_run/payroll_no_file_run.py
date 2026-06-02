@@ -13,6 +13,8 @@ class PayrollNoFileRun(Document):
             self.posting_date = self.payroll_period_end
         if not self.working_days:
             self.working_days = 30
+        if not self.project:
+            frappe.throw(_("Project is required"))
 
 
 @frappe.whitelist()
@@ -22,8 +24,8 @@ def trigger_generate(run_name):
 
     if run.status not in ("Draft", "Generated", "Failed"):
         frappe.throw(_("Cannot regenerate from status '{0}'").format(run.status))
-    if not run.template:
-        frappe.throw(_("Template is required"))
+    if not run.project:
+        frappe.throw(_("Project is required"))
 
     run.db_set("status", "Generating", update_modified=False)
     run.db_set("generation_log", "", update_modified=False)

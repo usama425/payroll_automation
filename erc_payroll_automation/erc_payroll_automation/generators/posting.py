@@ -466,8 +466,20 @@ def _create_additional_salary(emp_id, component, amount, payroll_date):
 
 
 def _create_draft_payroll_entry(run):
-    """Create a DRAFT Payroll Entry scoped to the period + company. Finance
-    reviews + clicks Get Employees / Submit. We do NOT submit it."""
+    """Create a DRAFT Payroll Entry scoped to the run's project + period, with
+    employees already populated, left in workflow state 'Draft'.
+
+    Finance then runs Actions -> Create Salary Slips and the HRM/FM approval
+    chain manually (the site's Payroll Entry workflow). We do NOT create or
+    submit Salary Slips here.
+
+    This relies on the site's patched Payroll Entry core
+    (make_filters / get_filter_condition include the `projects` field), so
+    get_emp_list() is scoped to the project exactly like the manual flow.
+
+    Raises on a missing payable account or no eligible employees, so the
+    failure shows on the Posting Run instead of leaving a silently-empty PE.
+    """
     # Prefer the company used by employees in this run; fall back to global default
     company = frappe.defaults.get_global_default("company")
     if run.salary_changes:
@@ -481,6 +493,19 @@ def _create_draft_payroll_entry(run):
                                 "company")
         if c:
             company = c
+    if not company:
+        raise ValueError("Could not determine the Company for the Payroll Entry.")
+
+    # Payroll Payable Account is mandatory on Payroll Entry — resolve from the
+    # Company default and fail loudly if it isn't set.
+    payable_account = frappe.db.get_value(
+        "Company", company, "default_payroll_payable_account")
+    if not payable_account:
+        raise ValueError(
+            f"Company '{company}' has no Default Payroll Payable Account. "
+            f"Set it under Company > Accounting Settings before posting."
+        )
+    currency = frappe.db.get_value("Company", company, "default_currency") or "SAR"
 
     pe = frappe.new_doc("Payroll Entry")
     pe.company = company
@@ -488,21 +513,38 @@ def _create_draft_payroll_entry(run):
     pe.payroll_frequency = "Monthly"
     pe.start_date = run.payroll_period_start
     pe.end_date = run.payroll_period_end
-    if pe.meta.has_field("project") and run.project:
-        pe.project = run.project
+    pe.payroll_payable_account = payable_account
     if pe.meta.has_field("currency"):
-        pe.currency = frappe.db.get_value("Company", company,
-                                          "default_currency") or "SAR"
+        pe.currency = currency
+    # The live site stores the client/project scope on `projects` (the custom
+    # field the patched core filters on). `project` is a leftover standard
+    # field — only used as a fallback if `projects` is absent.
+    if run.project and pe.meta.has_field("projects"):
+        pe.projects = run.project
+    elif run.project and pe.meta.has_field("project"):
+        pe.project = run.project
+    # Land in the workflow's initial state so finance's normal buttons appear.
+    if pe.meta.has_field("workflow_state"):
+        pe.workflow_state = "Draft"
     pe.flags.ignore_permissions = True
     pe.insert(ignore_permissions=True)
-    # Try to auto-fill employees; non-fatal if the API differs by version
-    try:
-        if hasattr(pe, "fill_employee_details"):
-            pe.fill_employee_details()
-            pe.save(ignore_permissions=True)
-    except Exception:
-        frappe.log_error(
-            title=f"Payroll Posting: fill_employee_details skipped {run.name}",
-            message=frappe.get_traceback(),
+
+    # Populate employees via the patched, project-scoped get_emp_list().
+    # Mirrors the manual fill_employee_details body but skips the
+    # unmarked-attendance lookup (which can raise on some configs).
+    employees = pe.get_emp_list() or []
+    if not employees:
+        # Don't leave an empty shell PE behind.
+        frappe.delete_doc("Payroll Entry", pe.name,
+                          ignore_permissions=True, force=True)
+        raise ValueError(
+            f"No eligible employees found for project '{run.project}' in "
+            f"{run.payroll_period_start} - {run.payroll_period_end}. "
+            f"Check that the employees have an active Salary Structure "
+            f"Assignment covering this period."
         )
+    for d in employees:
+        pe.append("employees", d)
+    pe.number_of_employees = len(pe.employees)
+    pe.save(ignore_permissions=True)
     return pe.name

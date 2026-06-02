@@ -61,8 +61,8 @@ frappe.ui.form.on('Payroll No File Run', {
         }
     },
 
-    template: function(frm) {
-        if (frm.doc.template && !frm.doc.payroll_period_start) {
+    project: function(frm) {
+        if (frm.doc.project && !frm.doc.payroll_period_start) {
             const today = frappe.datetime.get_today();
             frm.set_value('payroll_period_start', frappe.datetime.month_start(today));
             frm.set_value('payroll_period_end', frappe.datetime.month_end(today));

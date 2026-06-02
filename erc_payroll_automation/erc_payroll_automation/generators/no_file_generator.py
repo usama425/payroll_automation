@@ -24,10 +24,12 @@ def generate_no_file_outputs(run_name: str, user: str = None):
     frappe.set_user(effective_user)
 
     run = frappe.get_doc("Payroll No File Run", run_name)
-    template = frappe.get_doc("Payroll Import Template", run.template)
+    # Scope is driven by the Run's own Project + Work Location; the Template is
+    # optional and only supplies non-standard base-salary field names.
+    template = _scope_from_run(run)
 
     try:
-        # Step 1: gather employees scoped by template's project + work location
+        # Step 1: gather employees scoped by project + work location
         employees = _scope_employees(template)
         frappe.log_error(
             title=f"Payroll No File generate: employees fetched {run_name}",
@@ -89,6 +91,58 @@ def generate_no_file_outputs(run_name: str, user: str = None):
         except Exception:
             pass
         raise
+
+
+class _Scope:
+    """Template-shaped object for the No-File generator.
+
+    Lets the run work without a Payroll Import Template: scope comes from the
+    Run's own Project / Customer / Work Location, and base-salary field names
+    default to the standard Employee fields (overridable by an optional
+    Template).
+    """
+
+    def __init__(self, project=None, customer=None, work_location=None):
+        self.project = project
+        self.customer = customer
+        self.filter_by_work_location = work_location
+        self.template_name = None
+        self.location_strategy = "Custom Field on Employee"
+        self.location_field_on_employee = "custom_location"
+        self.no_file_emp_field_basic = "basic_salary"
+        self.no_file_emp_field_housing = "housing_allowance"
+        self.no_file_emp_field_transportation = "transport_allowance"
+        self.no_file_emp_field_other_allowance = "food_allowance"
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
+
+def _scope_from_run(run):
+    """Build a scope from the Run, layering an optional Template on top."""
+    scope = _Scope(
+        project=run.project,
+        customer=run.customer,
+        work_location=getattr(run, "filter_by_work_location", None),
+    )
+    if run.template:
+        tmpl = frappe.get_doc("Payroll Import Template", run.template)
+        scope.project = scope.project or tmpl.project
+        scope.customer = scope.customer or tmpl.customer
+        scope.filter_by_work_location = (
+            scope.filter_by_work_location or tmpl.filter_by_work_location)
+        scope.location_strategy = tmpl.location_strategy or scope.location_strategy
+        scope.location_field_on_employee = (
+            tmpl.location_field_on_employee or scope.location_field_on_employee)
+        scope.no_file_emp_field_basic = (
+            tmpl.no_file_emp_field_basic or scope.no_file_emp_field_basic)
+        scope.no_file_emp_field_housing = (
+            tmpl.no_file_emp_field_housing or scope.no_file_emp_field_housing)
+        scope.no_file_emp_field_transportation = (
+            tmpl.no_file_emp_field_transportation or scope.no_file_emp_field_transportation)
+        scope.no_file_emp_field_other_allowance = (
+            tmpl.no_file_emp_field_other_allowance or scope.no_file_emp_field_other_allowance)
+    return scope
 
 
 def _scope_employees(template):
