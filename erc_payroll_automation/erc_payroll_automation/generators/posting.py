@@ -162,10 +162,21 @@ def post(run_name, user=None):
     run = frappe.get_doc("Payroll Posting Run", run_name)
     log_lines = []
     try:
+        # Resolve the Salary Structure from the Template (source of truth).
+        # run.salary_structure is fetched at save-time and can be stale if the
+        # Template was filled in AFTER this run was created — so fall back to
+        # the live template value and persist it back onto the run.
+        if not run.salary_structure and run.template:
+            tmpl_ss = frappe.db.get_value(
+                "Payroll Import Template", run.template, "salary_structure")
+            if tmpl_ss:
+                run.salary_structure = tmpl_ss
+                run.db_set("salary_structure", tmpl_ss, update_modified=False)
         if not run.salary_structure:
             raise ValueError(
-                "Template has no Salary Structure set. Open the Template and "
-                "fill in the 'Salary Structure' field before posting."
+                "Template '{0}' has no Salary Structure set. Open the Template "
+                "and fill in the 'Salary Structure' field before posting.".format(
+                    run.template)
             )
 
         period_start = getdate(run.payroll_period_start)
