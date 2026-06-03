@@ -473,9 +473,11 @@ def _create_draft_payroll_entry(run):
     chain manually (the site's Payroll Entry workflow). We do NOT create or
     submit Salary Slips here.
 
-    This relies on the site's patched Payroll Entry core
-    (make_filters / get_filter_condition include the `projects` field), so
-    get_emp_list() is scoped to the project exactly like the manual flow.
+    Employees are scoped HERE (project + work location + active SSA) — we do
+    NOT use pe.get_emp_list(), because that depends on a manual HRMS core patch
+    (make_filters/get_filter_condition adding `projects`) that Frappe Cloud
+    wipes on every rebuild; when missing it returns every active employee
+    company-wide.
 
     Raises on a missing payable account or no eligible employees, so the
     failure shows on the Posting Run instead of leaving a silently-empty PE.
@@ -507,6 +509,16 @@ def _create_draft_payroll_entry(run):
         )
     currency = frappe.db.get_value("Company", company, "default_currency") or "SAR"
 
+    # Work-location scope comes from the template (the run isn't location-aware).
+    work_location, location_field = None, "custom_location"
+    if run.template:
+        t = frappe.db.get_value(
+            "Payroll Import Template", run.template,
+            ["filter_by_work_location", "location_field_on_employee"],
+            as_dict=True) or {}
+        work_location = t.get("filter_by_work_location")
+        location_field = t.get("location_field_on_employee") or "custom_location"
+
     pe = frappe.new_doc("Payroll Entry")
     pe.company = company
     pe.posting_date = run.posting_date or run.payroll_period_end
@@ -532,22 +544,137 @@ def _create_draft_payroll_entry(run):
     pe.flags.ignore_permissions = True
     pe.insert(ignore_permissions=True)
 
-    # Populate employees via the patched, project-scoped get_emp_list().
-    # Mirrors the manual fill_employee_details body but skips the
-    # unmarked-attendance lookup (which can raise on some configs).
-    employees = pe.get_emp_list() or []
+    # Auto-create a Salary Structure Assignment for any active scoped employee
+    # that has none (e.g. new hires) — using their current Employee base pay —
+    # so they aren't silently dropped from the Payroll Entry.
+    _ensure_payroll_ssas(run, company, work_location, location_field)
+
+    # Scope employees ourselves (project + work location + active SSA).
+    employees = _eligible_employees(run, company, work_location, location_field)
     if not employees:
         # Don't leave an empty shell PE behind.
         frappe.delete_doc("Payroll Entry", pe.name,
                           ignore_permissions=True, force=True)
+        loc = f" / work location '{work_location}'" if work_location else ""
         raise ValueError(
-            f"No eligible employees found for project '{run.project}' in "
+            f"No eligible employees found for project '{run.project}'{loc} in "
             f"{run.payroll_period_start} - {run.payroll_period_end}. "
-            f"Check that the employees have an active Salary Structure "
-            f"Assignment covering this period."
+            f"Check that employees have Project set and an active Salary "
+            f"Structure Assignment covering this period."
         )
-    for d in employees:
-        pe.append("employees", d)
+    for e in employees:
+        pe.append("employees", {
+            "employee": e.name,
+            "employee_name": e.employee_name,
+            "department": e.department,
+            "designation": e.designation,
+        })
     pe.number_of_employees = len(pe.employees)
     pe.save(ignore_permissions=True)
     return pe.name
+
+
+def _ensure_payroll_ssas(run, company, work_location=None,
+                         location_field="custom_location"):
+    """For every active scoped employee missing a usable Salary Structure
+    Assignment, create one from their current Employee base pay so new hires
+    get into payroll. Returns the number of SSAs created.
+
+    Skips employees with no basic salary (can't build a meaningful SSA) and
+    logs them. No-op if the run has no Salary Structure (trigger_post already
+    blocks posting in that case).
+    """
+    salary_structure = run.salary_structure
+    if not salary_structure:
+        return 0
+
+    emp_meta = frappe.get_meta("Employee")
+    filters = {"status": "Active"}
+    if company and emp_meta.has_field("company"):
+        filters["company"] = company
+    if run.project and emp_meta.has_field("project"):
+        filters["project"] = run.project
+    if work_location and emp_meta.has_field(location_field):
+        filters[location_field] = work_location
+
+    emps = frappe.get_all("Employee", filters=filters, pluck="name")
+    if not emps:
+        return 0
+
+    have_ssa = {
+        r.employee for r in frappe.get_all(
+            "Salary Structure Assignment",
+            filters={"employee": ["in", emps], "docstatus": 1,
+                     "from_date": ["<=", run.payroll_period_end]},
+            fields=["employee"], distinct=True,
+        )
+    }
+
+    from_date = getdate(run.payroll_period_start)
+    created = 0
+    for emp_id in emps:
+        if emp_id in have_ssa:
+            continue
+        base = flt(frappe.db.get_value("Employee", emp_id, "basic_salary"))
+        if base <= 0:
+            frappe.log_error(
+                title=f"Payroll Posting: no base for auto-SSA {emp_id} ({run.name})",
+                message=f"{emp_id} has no/zero basic_salary — SSA not auto-created.",
+            )
+            continue
+        try:
+            _ensure_ssa(emp_id, salary_structure, from_date, new_base=base,
+                        allowances={}, project=run.project, force=True,
+                        log_lines=[])
+            created += 1
+        except Exception:
+            frappe.log_error(
+                title=f"Payroll Posting: auto-SSA failed {emp_id} ({run.name})",
+                message=frappe.get_traceback(),
+            )
+
+    if created:
+        frappe.db.commit()
+        frappe.log_error(
+            title=f"Payroll Posting: auto-created {created} SSA(s) ({run.name})",
+            message=f"Created Salary Structure Assignments for {created} "
+                    f"employee(s) that had none.",
+        )
+    return created
+
+
+def _eligible_employees(run, company, work_location=None,
+                        location_field="custom_location"):
+    """Active employees on the run's project (+ optional work location) that
+    have a submitted Salary Structure Assignment covering the period.
+
+    Built explicitly (not via pe.get_emp_list) so payroll scoping does NOT
+    depend on the manual HRMS core patch that Frappe Cloud wipes on rebuild.
+    """
+    emp_meta = frappe.get_meta("Employee")
+    filters = {"status": "Active"}
+    if company and emp_meta.has_field("company"):
+        filters["company"] = company
+    if run.project and emp_meta.has_field("project"):
+        filters["project"] = run.project
+    if work_location and emp_meta.has_field(location_field):
+        filters[location_field] = work_location
+
+    emps = frappe.get_all(
+        "Employee", filters=filters,
+        fields=["name", "employee_name", "department", "designation"],
+        order_by="employee_name asc",
+    )
+    if not emps:
+        return []
+
+    names = [e.name for e in emps]
+    ssa_emps = {
+        r.employee for r in frappe.get_all(
+            "Salary Structure Assignment",
+            filters={"employee": ["in", names], "docstatus": 1,
+                     "from_date": ["<=", run.payroll_period_end]},
+            fields=["employee"], distinct=True,
+        )
+    }
+    return [e for e in emps if e.name in ssa_emps]

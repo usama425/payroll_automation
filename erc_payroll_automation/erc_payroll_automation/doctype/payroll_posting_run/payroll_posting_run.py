@@ -82,10 +82,19 @@ def create_payroll_entry(run_name):
     if run.status != "Posted":
         frappe.throw(_("Create Payroll Entry is only available on a Posted run. "
                        "Current: {0}").format(run.status))
+
+    # If a PE is already linked, recreate cleanly: delete the old DRAFT and
+    # rebuild (refuse if it's already submitted).
     if run.created_payroll_entry and frappe.db.exists(
             "Payroll Entry", run.created_payroll_entry):
-        frappe.throw(_("A Payroll Entry is already linked: {0}").format(
-            run.created_payroll_entry))
+        existing = frappe.get_doc("Payroll Entry", run.created_payroll_entry)
+        if existing.docstatus == 1:
+            frappe.throw(_(
+                "Linked Payroll Entry {0} is already submitted — cannot "
+                "recreate. Cancel it first if you need to rebuild."
+            ).format(existing.name))
+        frappe.delete_doc("Payroll Entry", existing.name,
+                          ignore_permissions=True, force=True)
 
     pe_name = _create_draft_payroll_entry(run)
     run.db_set("created_payroll_entry", pe_name, update_modified=False)

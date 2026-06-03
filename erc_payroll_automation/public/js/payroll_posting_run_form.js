@@ -66,29 +66,39 @@ frappe.ui.form.on('Payroll Posting Run', {
         }
 
         if (frm.doc.status === 'Posted') {
-            if (frm.doc.created_payroll_entry) {
+            const has_pe = !!frm.doc.created_payroll_entry;
+            if (has_pe) {
                 frm.add_custom_button(__('Open Draft Payroll Entry'), function() {
                     frappe.set_route('Form', 'Payroll Entry', frm.doc.created_payroll_entry);
                 }, __('Actions'));
                 frm.dashboard.add_indicator(__('Posted — review the draft Payroll Entry, then Get Employees + Submit there'), 'green');
             } else {
-                // Recovery: SSAs/Additional Salary applied but the PE step failed.
-                frm.add_custom_button(__('Create Payroll Entry'), function() {
-                    frappe.call({
-                        method: 'erc_payroll_automation.erc_payroll_automation.doctype.payroll_posting_run.payroll_posting_run.create_payroll_entry',
-                        args: { run_name: frm.doc.name },
-                        freeze: true,
-                        freeze_message: __('Creating Payroll Entry...'),
-                        callback: function(r) {
-                            if (r.message && r.message.payroll_entry) {
-                                frappe.show_alert({ message: __('Payroll Entry created: {0}', [r.message.payroll_entry]), indicator: 'green' });
-                            }
-                            frm.reload_doc();
-                        }
-                    });
-                }).addClass('btn-primary');
                 frm.dashboard.add_indicator(__('Posted, but Payroll Entry not created — click "Create Payroll Entry"'), 'orange');
             }
+            // Create (or rebuild) the project-scoped draft Payroll Entry.
+            // Rebuild deletes the old DRAFT PE first (e.g. to fix a wrongly-scoped one).
+            const label = has_pe ? __('Recreate Payroll Entry') : __('Create Payroll Entry');
+            frm.add_custom_button(label, function() {
+                frappe.confirm(
+                    has_pe
+                        ? __('Delete the current draft Payroll Entry and rebuild it scoped to the project + work location?')
+                        : __('Create the draft Payroll Entry scoped to the project + work location?'),
+                    function() {
+                        frappe.call({
+                            method: 'erc_payroll_automation.erc_payroll_automation.doctype.payroll_posting_run.payroll_posting_run.create_payroll_entry',
+                            args: { run_name: frm.doc.name },
+                            freeze: true,
+                            freeze_message: __('Building Payroll Entry...'),
+                            callback: function(r) {
+                                if (r.message && r.message.payroll_entry) {
+                                    frappe.show_alert({ message: __('Payroll Entry: {0}', [r.message.payroll_entry]), indicator: 'green' });
+                                }
+                                frm.reload_doc();
+                            }
+                        });
+                    }
+                );
+            }).addClass(has_pe ? '' : 'btn-primary');
         }
     },
 
