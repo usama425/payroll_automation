@@ -2,21 +2,29 @@
 
 For projects whose customer file carries only *deltas* (variable earnings /
 deductions) rather than the full salary breakdown — currently Datavolt and
-Airproducts. The base salary for EVERY active project employee comes from
-system Employee data (same fields the No-File Run uses); the file only adjusts
-overtime / other income / deductions for the few employees it lists.
+Airproducts. Base salary comes from system Employee data; the file only adjusts
+overtime / other income / deductions.
 
 Output is a normal set of Payroll Import Row records, so the existing
 Generate Outputs step renders the standard Elite internal sheet unchanged.
 
-Mapping (confirmed with the client):
-    Datavolt   — match by Employee ID (fallback employee_id_from_client)
-                 'Variable Earnings'.Amount   -> Other Income
-                 'Variable Deductions'.Amount -> Deductions (abs)
-    Airproducts — match by IQAMA (iqama_national_id)
-                 'Overtime Amount'            -> Overtime
-                 other allowance columns sum  -> Other Income
-                 'DEDUCTION AMOUNT'           -> Deductions (abs)
+Population differs by mode (per the client):
+    Datavolt    — ALL active project employees. Match deltas by Employee ID
+                  (fallback employee_id_from_client). The few employees in
+                  'Variable Earnings' / 'Variable Deductions' get adjusted;
+                  everyone else is pure system data.
+                  Variable Earnings.Amount   -> Other Income
+                  Variable Deductions.Amount -> Deductions (abs)
+    Airproducts — Employees are SPECIFIED BY the file (matched on IQAMA). Each
+                  file row -> one employee, base from system + the file deltas.
+                  Overtime Amount            -> Overtime
+                  other allowance columns sum-> Other Income
+                  DEDUCTION AMOUNT           -> Deductions (abs)
+
+Scoping note: we deliberately do NOT filter by Work Location here. These are
+single-project clients and Employee.custom_location is often blank, which would
+wrongly drop almost everyone. Airproducts also has a global IQAMA fallback so an
+existing active employee still matches even if their project field is off.
 """
 
 import json
@@ -50,33 +58,191 @@ def is_delta_mode(template):
 # ---------------------------------------------------------------------------
 
 def run_delta_parse(run, template):
-    """Build one Payroll Import Row per active project employee, base from
-    system, deltas overlaid from the file. Sets status -> Reconciliation Pending."""
-    employees = _scope_employees(template)
-    if not employees:
+    """Build Payroll Import Rows (base from system + file deltas) and persist.
+    Sets status -> Reconciliation Pending."""
+    mode = template.input_mode
+    if mode == DELTA_DATAVOLT:
+        rows, unmatched = _datavolt_rows(run, template)
+    elif mode == DELTA_AIRPRODUCTS:
+        rows, unmatched = _airproducts_rows(run, template)
+    else:
+        raise ValueError(f"Unsupported delta input_mode: {mode!r}")
+
+    if not rows:
         raise ValueError(_(
-            "No active employees found for project {0}. Delta mode needs the "
-            "project's employees to exist in the system."
-        ).format(template.project))
-
-    deltas, unmatched = _read_deltas(run, template, employees)
-
-    period_days = _period_days(run)
-    rows = []
-    for emp in employees:
-        base = _base_amounts(emp, template)
-        d = deltas.get(emp.name) or _zero()
-        rows.append(_build_row(emp, base, d, period_days))
+            "No employee rows produced for {0}. Check that the project's "
+            "employees exist in the system and the file matches them."
+        ).format(mode))
 
     _persist(run, rows, unmatched)
 
     frappe.log_error(
         title=f"Payroll Import delta parse COMPLETE {run.name}",
-        message=(
-            f"mode={template.input_mode} employees={len(rows)} "
-            f"with_deltas={len(deltas)} unmatched_file_rows={len(unmatched)}"
-        ),
+        message=(f"mode={mode} rows={len(rows)} "
+                 f"unmatched_file_rows={len(unmatched)}"),
     )
+
+
+# ---------------------------------------------------------------------------
+# Datavolt: population = all active project employees, deltas overlaid
+# ---------------------------------------------------------------------------
+
+def _datavolt_rows(run, template):
+    employees = _scope_employees(template)
+    if not employees:
+        raise ValueError(_(
+            "No active employees found for project {0}."
+        ).format(template.project))
+
+    by_name = {str(e.name).strip(): e.name for e in employees}
+    by_client = {
+        str(e.employee_id_from_client).strip(): e.name
+        for e in employees if e.get("employee_id_from_client")
+    }
+
+    deltas, unmatched = {}, []
+    path = _resolve_attached_file_path(run.source_file)
+    wb = load_workbook(path, data_only=True, read_only=True)
+    try:
+        for raw_key, amount in _datavolt_sheet(wb, "Variable Earnings"):
+            emp = by_name.get(_norm_id(raw_key)) or by_client.get(_norm_id(raw_key))
+            if not emp:
+                unmatched.append({"sheet": "Variable Earnings",
+                                  "raw_key": raw_key, "amount": amount})
+                continue
+            deltas.setdefault(emp, _zero())["other_income"] += amount
+        for raw_key, amount in _datavolt_sheet(wb, "Variable Deductions"):
+            emp = by_name.get(_norm_id(raw_key)) or by_client.get(_norm_id(raw_key))
+            if not emp:
+                unmatched.append({"sheet": "Variable Deductions",
+                                  "raw_key": raw_key, "amount": amount})
+                continue
+            deltas.setdefault(emp, _zero())["deductions"] += abs(amount)
+    finally:
+        wb.close()
+
+    period_days = _period_days(run)
+    rows = [
+        _build_row(e, _base_amounts(e, template),
+                   deltas.get(e.name) or _zero(), period_days)
+        for e in employees
+    ]
+    return rows, unmatched
+
+
+def _datavolt_sheet(wb, sheet_name):
+    """Yield (raw_employee_code, amount) for a Datavolt delta sheet.
+    Header is the first row (within the top 8) containing 'employee code'."""
+    if sheet_name not in wb.sheetnames:
+        return []
+    rows = list(wb[sheet_name].iter_rows(values_only=True))
+    hidx, norm = _find_header(rows, ["employee code"])
+    if hidx is None:
+        return []
+    key_c = _col(norm, "employee code")
+    amt_c = _col(norm, "amount")
+    out = []
+    for r in rows[hidx + 1:]:
+        if key_c is None or key_c >= len(r):
+            continue
+        raw_key = r[key_c]
+        if raw_key in (None, ""):
+            continue
+        out.append((raw_key, _to_float(_cell(r, amt_c))))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Airproducts: population = file rows, matched to employees by IQAMA
+# ---------------------------------------------------------------------------
+
+def _airproducts_rows(run, template):
+    file_rows = _read_airproducts_file(run)
+    if not file_rows:
+        raise ValueError(_("No data rows found in the Airproducts file "
+                           "(could not locate the IQAMA column)."))
+
+    # Match against project employees first; fall back to a global IQAMA lookup
+    # so an existing active employee still matches even with a wrong project.
+    proj_emps = _scope_employees(template)
+    by_iqama = {
+        _norm_id(e.iqama_national_id): e
+        for e in proj_emps if e.get("iqama_national_id")
+    }
+    missing = [fr for fr in file_rows if _norm_id(fr["iqama"]) not in by_iqama]
+    if missing:
+        for e in _employees_by_iqama([_norm_id(fr["iqama"]) for fr in missing],
+                                     template):
+            by_iqama.setdefault(_norm_id(e.iqama_national_id), e)
+
+    period_days = _period_days(run)
+    rows, unmatched, seen = [], [], {}
+    for fr in file_rows:
+        iq = _norm_id(fr["iqama"])
+        e = by_iqama.get(iq)
+        if not e:
+            unmatched.append({"sheet": "Allowances", "raw_key": fr["iqama"],
+                              "amount": fr["overtime"] + fr["other_income"] - fr["deductions"]})
+            continue
+        d = {"overtime": fr["overtime"], "other_income": fr["other_income"],
+             "deductions": fr["deductions"]}
+        if e.name in seen:
+            # Same employee appears twice in the file — accumulate the deltas.
+            row = seen[e.name]
+            row["overtime"] += d["overtime"]
+            row["other_income"] += d["other_income"]
+            row["deductions"] += d["deductions"]
+            row["net_salary_from_file"] = _net(row)
+            continue
+        row = _build_row(e, _base_amounts(e, template), d, period_days)
+        rows.append(row)
+        seen[e.name] = row
+    return rows, unmatched
+
+
+def _read_airproducts_file(run):
+    """Return list of {iqama, overtime, other_income, deductions} from the file."""
+    path = _resolve_attached_file_path(run.source_file)
+    wb = load_workbook(path, data_only=True, read_only=True)
+    try:
+        sheet = _airproducts_sheet(wb)
+        if not sheet:
+            return []
+        ws_rows, hidx, norm = sheet
+        iq_c = _col(norm, "iqama")
+        ot_c = _col(norm, "overtime amount", "overtime")
+        ded_c = _col(norm, "deduction amount", "deduction")
+        add_cs = [
+            _col(norm, h) for h in
+            ("other allowance", "utility allowance", "trip allowance",
+             "ticket allowance", "phone allowance")
+        ]
+        out = []
+        for r in ws_rows[hidx + 1:]:
+            if iq_c is None or iq_c >= len(r):
+                continue
+            raw_iq = r[iq_c]
+            if raw_iq in (None, ""):
+                continue
+            out.append({
+                "iqama": raw_iq,
+                "overtime": _to_float(_cell(r, ot_c)),
+                "other_income": sum(_to_float(_cell(r, c)) for c in add_cs if c is not None),
+                "deductions": abs(_to_float(_cell(r, ded_c))),
+            })
+        return out
+    finally:
+        wb.close()
+
+
+def _airproducts_sheet(wb):
+    """Find the data sheet (header containing 'IQAMA'). Returns (rows, hidx, norm)."""
+    for sn in wb.sheetnames:
+        rows = list(wb[sn].iter_rows(values_only=True))
+        hidx, norm = _find_header(rows, ["iqama"])
+        if hidx is not None:
+            return rows, hidx, norm
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -84,20 +250,33 @@ def run_delta_parse(run, template):
 # ---------------------------------------------------------------------------
 
 def _scope_employees(template):
+    """Active employees on the template's project. No Work Location filter —
+    custom_location is often blank for these clients and would drop everyone."""
     filters = {"status": "Active"}
     if template.project:
         filters["project"] = template.project
-    if (template.location_strategy in ("Custom Field on Employee", "Mix")
-            and template.filter_by_work_location):
-        field = template.location_field_on_employee or "custom_location"
-        filters[field] = template.filter_by_work_location
 
     fields = EMP_FIELDS[:]
     for cf in _base_fieldnames(template):
         if cf not in fields and _field_exists("Employee", cf):
             fields.append(cf)
-
     return frappe.get_all("Employee", filters=filters, fields=fields)
+
+
+def _employees_by_iqama(iqamas, template):
+    """Global fallback: fetch active employees by IQAMA, any project."""
+    iqamas = [i for i in dict.fromkeys(iqamas) if i]
+    if not iqamas:
+        return []
+    fields = EMP_FIELDS[:]
+    for cf in _base_fieldnames(template):
+        if cf not in fields and _field_exists("Employee", cf):
+            fields.append(cf)
+    return frappe.get_all(
+        "Employee",
+        filters={"status": "Active", "iqama_national_id": ["in", iqamas]},
+        fields=fields,
+    )
 
 
 def _base_fieldnames(template):
@@ -127,140 +306,12 @@ def _field_exists(doctype, fieldname):
 
 
 # ---------------------------------------------------------------------------
-# Read deltas from the file
+# Header / cell helpers
 # ---------------------------------------------------------------------------
 
 def _zero():
     return {"overtime": 0.0, "other_income": 0.0, "deductions": 0.0}
 
-
-def _read_deltas(run, template, employees):
-    """Return (deltas_by_employee, unmatched_file_rows).
-
-    deltas_by_employee: {employee_name: {overtime, other_income, deductions}}
-    unmatched_file_rows: [{"sheet":.., "raw_key":.., "amount":..}]
-    """
-    by_name = {str(e.name).strip(): e.name for e in employees}
-    by_client = {
-        str(e.employee_id_from_client).strip(): e.name
-        for e in employees if e.get("employee_id_from_client")
-    }
-    by_iqama = {
-        str(e.iqama_national_id).strip(): e.name
-        for e in employees if e.get("iqama_national_id")
-    }
-
-    path = _resolve_attached_file_path(run.source_file)
-    wb = load_workbook(path, data_only=True, read_only=True)
-    try:
-        if template.input_mode == DELTA_DATAVOLT:
-            return _read_datavolt(wb, by_name, by_client)
-        if template.input_mode == DELTA_AIRPRODUCTS:
-            return _read_airproducts(wb, by_iqama)
-        raise ValueError(f"Unsupported delta input_mode: {template.input_mode!r}")
-    finally:
-        wb.close()
-
-
-def _read_datavolt(wb, by_name, by_client):
-    deltas, unmatched = {}, []
-
-    for raw_key, amount in _datavolt_sheet(wb, "Variable Earnings"):
-        emp = _resolve_code(raw_key, by_name, by_client)
-        if not emp:
-            unmatched.append({"sheet": "Variable Earnings",
-                              "raw_key": raw_key, "amount": amount})
-            continue
-        deltas.setdefault(emp, _zero())["other_income"] += amount
-
-    for raw_key, amount in _datavolt_sheet(wb, "Variable Deductions"):
-        emp = _resolve_code(raw_key, by_name, by_client)
-        if not emp:
-            unmatched.append({"sheet": "Variable Deductions",
-                              "raw_key": raw_key, "amount": amount})
-            continue
-        deltas.setdefault(emp, _zero())["deductions"] += abs(amount)
-
-    return deltas, unmatched
-
-
-def _datavolt_sheet(wb, sheet_name):
-    """Yield (raw_employee_code, amount) for a Datavolt delta sheet.
-
-    Header row is the first row (within the top 8) containing 'employee code'.
-    """
-    if sheet_name not in wb.sheetnames:
-        return []
-    rows = list(wb[sheet_name].iter_rows(values_only=True))
-    hidx, norm = _find_header(rows, ["employee code"])
-    if hidx is None:
-        return []
-    key_c = _col(norm, "employee code")
-    amt_c = _col(norm, "amount")
-    out = []
-    for r in rows[hidx + 1:]:
-        if key_c is None or key_c >= len(r):
-            continue
-        raw_key = r[key_c]
-        if raw_key in (None, ""):
-            continue
-        amount = _to_float(_cell(r, amt_c))
-        out.append((raw_key, amount))
-    return out
-
-
-def _read_airproducts(wb, by_iqama):
-    deltas, unmatched = {}, []
-    sheet = _airproducts_sheet(wb)
-    if not sheet:
-        return deltas, unmatched
-    ws_rows, hidx, norm = sheet
-
-    iq_c = _col(norm, "iqama")
-    ot_c = _col(norm, "overtime amount", "overtime")
-    ded_c = _col(norm, "deduction amount", "deduction")
-    add_cs = [
-        _col(norm, h) for h in
-        ("other allowance", "utility allowance", "trip allowance",
-         "ticket allowance", "phone allowance")
-    ]
-
-    for r in ws_rows[hidx + 1:]:
-        if iq_c is None or iq_c >= len(r):
-            continue
-        raw_iq = r[iq_c]
-        if raw_iq in (None, ""):
-            continue
-        overtime = _to_float(_cell(r, ot_c))
-        other = sum(_to_float(_cell(r, c)) for c in add_cs if c is not None)
-        deductions = abs(_to_float(_cell(r, ded_c)))
-        emp = by_iqama.get(_norm_id(raw_iq))
-        if not emp:
-            unmatched.append({"sheet": "Allowances",
-                              "raw_key": raw_iq,
-                              "amount": overtime + other - deductions})
-            continue
-        d = deltas.setdefault(emp, _zero())
-        d["overtime"] += overtime
-        d["other_income"] += other
-        d["deductions"] += deductions
-
-    return deltas, unmatched
-
-
-def _airproducts_sheet(wb):
-    """Find the data sheet (header containing 'IQAMA'). Returns (rows, hidx, norm)."""
-    for sn in wb.sheetnames:
-        rows = list(wb[sn].iter_rows(values_only=True))
-        hidx, norm = _find_header(rows, ["iqama"])
-        if hidx is not None:
-            return rows, hidx, norm
-    return None
-
-
-# ---------------------------------------------------------------------------
-# Header / cell helpers
-# ---------------------------------------------------------------------------
 
 def _norm(v):
     return " ".join(str(v).strip().lower().split()) if v is not None else ""
@@ -293,11 +344,6 @@ def _cell(row, idx):
     if idx is None or idx >= len(row):
         return None
     return row[idx]
-
-
-def _resolve_code(raw_key, by_name, by_client):
-    k = _norm_id(raw_key)
-    return by_name.get(k) or by_client.get(k)
 
 
 def _norm_id(value):
@@ -337,10 +383,14 @@ def _period_days(run):
 # Build + persist rows
 # ---------------------------------------------------------------------------
 
+def _net(row):
+    return (row["total_per_contract"] + row["overtime"]
+            + row["other_income"] - row["deductions"])
+
+
 def _build_row(emp, base, d, period_days):
     total = base["basic"] + base["housing"] + base["transport"] + base["other"]
-    net = total + d["overtime"] + d["other_income"] - d["deductions"]
-    return {
+    row = {
         "employee": emp.name,
         "match_method": "system_base",
         "match_confidence": 1.0,
@@ -363,8 +413,9 @@ def _build_row(emp, base, d, period_days):
         "deductions": d["deductions"],
         "hq_deductions": 0.0,
         "gosi_from_file": None,
-        "net_salary_from_file": net,
     }
+    row["net_salary_from_file"] = _net(row)
+    return row
 
 
 def _persist(run, rows, unmatched):
