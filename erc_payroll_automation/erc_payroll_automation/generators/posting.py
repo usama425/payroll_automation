@@ -384,19 +384,19 @@ def _ensure_ssa(emp_id, salary_structure, from_date, new_base, allowances,
     if latest and not force and abs(flt(latest.base) - target_base) <= 0.01:
         return "skipped"
 
-    # Same-period SSA already there?
-    existing_same_date = frappe.db.get_value(
+    # Same-period SSA already there? There can be MORE THAN ONE submitted SSA
+    # with the same from_date (messy historical data), and HRMS throws
+    # DuplicateAssignment on insert if even one survives — so cancel them ALL.
+    existing_same_date = frappe.get_all(
         "Salary Structure Assignment",
-        {"employee": emp_id, "from_date": from_date, "docstatus": 1},
-        ["name", "base"],
-        as_dict=True,
+        filters={"employee": emp_id, "from_date": from_date, "docstatus": 1},
+        fields=["name", "base"],
     )
-    if existing_same_date:
-        if abs(flt(existing_same_date.base) - target_base) <= 0.01:
-            return "skipped"
-        # Supersede: cancel the conflicting same-date SSA
-        old = frappe.get_doc("Salary Structure Assignment",
-                             existing_same_date.name)
+    if (len(existing_same_date) == 1
+            and abs(flt(existing_same_date[0].base) - target_base) <= 0.01):
+        return "skipped"
+    for ex in existing_same_date:
+        old = frappe.get_doc("Salary Structure Assignment", ex.name)
         old.cancel()
         log_lines.append(
             f"[SSA] {emp_id}: cancelled {old.name} "
@@ -516,6 +516,9 @@ def _create_draft_payroll_entry(run):
     pe.payroll_payable_account = payable_account
     if pe.meta.has_field("currency"):
         pe.currency = currency
+    # SAR == company currency, so the exchange rate is 1. Mandatory on PE.
+    if pe.meta.has_field("exchange_rate"):
+        pe.exchange_rate = 1
     # The live site stores the client/project scope on `projects` (the custom
     # field the patched core filters on). `project` is a leftover standard
     # field — only used as a fallback if `projects` is absent.

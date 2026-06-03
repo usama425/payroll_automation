@@ -69,6 +69,31 @@ def trigger_post(run_name):
 
 
 @frappe.whitelist()
+def create_payroll_entry(run_name):
+    """Recovery: create just the draft Payroll Entry for an already-Posted run
+    that doesn't have one yet — e.g. when an earlier post applied SSAs +
+    Additional Salary but failed only at the Payroll Entry step. Safe to call
+    once; refuses if a PE is already linked."""
+    from erc_payroll_automation.erc_payroll_automation.generators.posting import (
+        _create_draft_payroll_entry,
+    )
+
+    run = frappe.get_doc("Payroll Posting Run", run_name)
+    if run.status != "Posted":
+        frappe.throw(_("Create Payroll Entry is only available on a Posted run. "
+                       "Current: {0}").format(run.status))
+    if run.created_payroll_entry and frappe.db.exists(
+            "Payroll Entry", run.created_payroll_entry):
+        frappe.throw(_("A Payroll Entry is already linked: {0}").format(
+            run.created_payroll_entry))
+
+    pe_name = _create_draft_payroll_entry(run)
+    run.db_set("created_payroll_entry", pe_name, update_modified=False)
+    frappe.db.commit()
+    return {"status": "ok", "payroll_entry": pe_name}
+
+
+@frappe.whitelist()
 def revert_status(run_name, target_status="Draft"):
     """Recovery: reset a stuck Parsing/Posting run."""
     if target_status not in ("Draft", "Review"):

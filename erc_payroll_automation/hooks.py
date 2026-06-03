@@ -54,6 +54,8 @@ fixtures = [
                     # RSG sub-projects (added in this push)
                     "RSG Eli", "RSG Football Academy", "RSG Nursery",
                     "RSG Khuzam", "RSG HQ", "RSG (Main)", "RSG Hittin",
+                    # Delta-mode projects (base from system + file deltas)
+                    "Datavolt", "Airproducts",
                 ],
             ]
         ],

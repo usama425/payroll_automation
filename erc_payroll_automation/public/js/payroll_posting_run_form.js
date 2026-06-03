@@ -70,8 +70,25 @@ frappe.ui.form.on('Payroll Posting Run', {
                 frm.add_custom_button(__('Open Draft Payroll Entry'), function() {
                     frappe.set_route('Form', 'Payroll Entry', frm.doc.created_payroll_entry);
                 }, __('Actions'));
+                frm.dashboard.add_indicator(__('Posted — review the draft Payroll Entry, then Get Employees + Submit there'), 'green');
+            } else {
+                // Recovery: SSAs/Additional Salary applied but the PE step failed.
+                frm.add_custom_button(__('Create Payroll Entry'), function() {
+                    frappe.call({
+                        method: 'erc_payroll_automation.erc_payroll_automation.doctype.payroll_posting_run.payroll_posting_run.create_payroll_entry',
+                        args: { run_name: frm.doc.name },
+                        freeze: true,
+                        freeze_message: __('Creating Payroll Entry...'),
+                        callback: function(r) {
+                            if (r.message && r.message.payroll_entry) {
+                                frappe.show_alert({ message: __('Payroll Entry created: {0}', [r.message.payroll_entry]), indicator: 'green' });
+                            }
+                            frm.reload_doc();
+                        }
+                    });
+                }).addClass('btn-primary');
+                frm.dashboard.add_indicator(__('Posted, but Payroll Entry not created — click "Create Payroll Entry"'), 'orange');
             }
-            frm.dashboard.add_indicator(__('Posted — review the draft Payroll Entry, then Get Employees + Submit there'), 'green');
         }
     },
 

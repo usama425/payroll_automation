@@ -35,12 +35,14 @@ def nat(target, header=None, fallback=None):
 
 
 def base_template(template_name, sheet_name, header_row, notes, column_map,
-                  location_strategy="Custom Field on Employee"):
+                  location_strategy="Custom Field on Employee",
+                  input_mode="Full from File"):
     return {
         "doctype": "Payroll Import Template",
         "name": template_name,
         "template_name": template_name,
         "is_active": 1,
+        "input_mode": input_mode,
         "location_strategy": location_strategy,
         "location_field_on_employee": "custom_location",
         "sheet_name_override": sheet_name,
@@ -350,6 +352,38 @@ rsg_hittin = base_template(
 )
 
 # =============================================================================
+# Delta-mode templates (base salary from system, file supplies only deltas).
+# These ignore column_map entirely — delta_parser.py reads the file by mode.
+# Fill in Customer + Project + Filter by Work Location after install.
+# =============================================================================
+datavolt = base_template(
+    "Datavolt",
+    sheet_name=None,
+    header_row=2,
+    notes="DELTA mode. File carries only variable earnings/deductions; base "
+          "salary comes from system Employee data for all project employees. "
+          "Reads sheets 'Variable Earnings' (Amount -> Other Income) and "
+          "'Variable Deductions' (Amount -> Deductions). Matches on Employee "
+          "ID / employee_id_from_client. Fill in Customer + Project + Filter "
+          "by Work Location before first use.",
+    column_map=[],
+    input_mode="Deltas (Datavolt)",
+)
+
+airproducts = base_template(
+    "Airproducts",
+    sheet_name=None,
+    header_row=1,
+    notes="DELTA mode. File carries only allowances/deductions; base salary "
+          "comes from system Employee data. Matches on IQAMA. Overtime Amount "
+          "-> Overtime; other allowance columns -> Other Income; DEDUCTION "
+          "AMOUNT -> Deductions. Fill in Customer + Project + Filter by Work "
+          "Location before first use.",
+    column_map=[],
+    input_mode="Deltas (Airproducts)",
+)
+
+# =============================================================================
 # Combine + write
 # =============================================================================
 new_templates = [
@@ -357,6 +391,7 @@ new_templates = [
     *ap_hashim_templates,
     rsg_eli, rsg_football, rsg_nursery, rsg_khuzam, rsg_hq, rsg_main,
     rsg_hittin,
+    datavolt, airproducts,
 ]
 
 
