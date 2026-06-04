@@ -99,6 +99,27 @@ frappe.ui.form.on('Payroll Posting Run', {
                     }
                 );
             }).addClass(has_pe ? '' : 'btn-primary');
+
+            // Resolve HRMS "Multiple Additional Salaries with overwrite property"
+            // errors from a period posted more than once.
+            frm.add_custom_button(__('Clean up duplicate Additional Salary'), function() {
+                frappe.confirm(
+                    __('Cancel duplicate overwrite Additional Salary records for this project + period? Keeps the newest per employee + component.'),
+                    function() {
+                        frappe.call({
+                            method: 'erc_payroll_automation.erc_payroll_automation.doctype.payroll_posting_run.payroll_posting_run.cleanup_duplicate_additional_salary',
+                            args: { run_name: frm.doc.name },
+                            freeze: true,
+                            freeze_message: __('Cleaning up duplicates...'),
+                            callback: function(r) {
+                                if (r.message && r.message.message) {
+                                    frappe.msgprint({ title: __('Done'), indicator: 'green', message: r.message.message });
+                                }
+                            }
+                        });
+                    }
+                );
+            }, __('Actions'));
         }
     },
 

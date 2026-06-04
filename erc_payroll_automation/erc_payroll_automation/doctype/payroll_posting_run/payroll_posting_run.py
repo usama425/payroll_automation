@@ -103,6 +103,56 @@ def create_payroll_entry(run_name):
 
 
 @frappe.whitelist()
+def cleanup_duplicate_additional_salary(run_name):
+    """Cancel duplicate 'overwrite' Additional Salary records for this run's
+    project + period, keeping the newest per (employee, salary component).
+
+    Resolves the HRMS error during slip creation when a period was posted more
+    than once: "Multiple Additional Salaries with overwrite property exist for
+    Salary Component X between <start> and <end>".
+    """
+    from collections import defaultdict
+
+    run = frappe.get_doc("Payroll Posting Run", run_name)
+    if not run.payroll_period_start or not run.payroll_period_end:
+        frappe.throw(_("This run has no payroll period set."))
+
+    filters = {
+        "overwrite_salary_structure_amount": 1,
+        "docstatus": 1,
+        "payroll_date": ["between",
+                         [run.payroll_period_start, run.payroll_period_end]],
+    }
+    # Scope to employees on this run's project when possible.
+    if run.project and frappe.get_meta("Employee").has_field("project"):
+        employees = frappe.get_all("Employee", filters={"project": run.project},
+                                   pluck="name")
+        if not employees:
+            return {"status": "ok", "cancelled": 0,
+                    "message": _("No employees found on project {0}.").format(run.project)}
+        filters["employee"] = ["in", employees]
+
+    rows = frappe.get_all(
+        "Additional Salary", filters=filters,
+        fields=["name", "employee", "salary_component"], order_by="creation asc")
+
+    groups = defaultdict(list)
+    for r in rows:
+        groups[(r.employee, r.salary_component)].append(r.name)
+
+    cancelled = 0
+    for names in groups.values():
+        for name in names[:-1]:            # keep the newest, cancel earlier dups
+            frappe.get_doc("Additional Salary", name).cancel()
+            cancelled += 1
+    frappe.db.commit()
+
+    return {"status": "ok", "cancelled": cancelled,
+            "message": _("Cancelled {0} duplicate Additional Salary record(s) "
+                         "for the period.").format(cancelled)}
+
+
+@frappe.whitelist()
 def revert_status(run_name, target_status="Draft"):
     """Recovery: reset a stuck Parsing/Posting run."""
     if target_status not in ("Draft", "Review"):

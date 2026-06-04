@@ -231,7 +231,7 @@ def post(run_name, user=None):
             try:
                 _create_additional_salary(
                     row.employee, row.salary_component, flt(row.amount),
-                    payroll_date,
+                    payroll_date, period_start, run.payroll_period_end,
                 )
                 addsal_created += 1
             except Exception as e:
@@ -457,9 +457,30 @@ def _ensure_ssa(emp_id, salary_structure, from_date, new_base, allowances,
     return "created"
 
 
-def _create_additional_salary(emp_id, component, amount, payroll_date):
+def _create_additional_salary(emp_id, component, amount, payroll_date,
+                              period_start=None, period_end=None):
     company = frappe.db.get_value("Employee", emp_id, "company") \
         or frappe.defaults.get_global_default("company")
+
+    # Supersede any existing 'overwrite' Additional Salary for the same
+    # employee + component in this payroll period. Without this, re-posting a
+    # period (or posting it from more than one run) leaves multiple overwrite
+    # rows, and HRMS then refuses slip creation:
+    #   "Multiple Additional Salaries with overwrite property exist for
+    #    Salary Component X between <start> and <end>".
+    if period_start and period_end:
+        for name in frappe.get_all(
+                "Additional Salary",
+                filters={
+                    "employee": emp_id,
+                    "salary_component": component,
+                    "overwrite_salary_structure_amount": 1,
+                    "docstatus": 1,
+                    "payroll_date": ["between", [period_start, period_end]],
+                },
+                pluck="name"):
+            frappe.get_doc("Additional Salary", name).cancel()
+
     doc = frappe.new_doc("Additional Salary")
     doc.employee = emp_id
     doc.salary_component = component
