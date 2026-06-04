@@ -47,6 +47,10 @@ EMP_FIELDS = [
     "iqama_national_id", "passport_number", "employee_id_from_client", "status",
 ]
 
+# IBAN can live in any of these on Employee (the custom 'iban' field is the
+# usual one here). First non-empty wins. bank_ac_no is already in EMP_FIELDS.
+IBAN_FIELDS = ("iban", "custom_iban", "bank_ac_no", "bank_account_no")
+
 
 def is_delta_mode(template):
     mode = (getattr(template, "input_mode", None) or "Full from File")
@@ -249,18 +253,27 @@ def _airproducts_sheet(wb):
 # Employee scope + base salary
 # ---------------------------------------------------------------------------
 
+def _emp_field_list(template):
+    """Employee fields to fetch: base set + configured base-salary fields +
+    any existing IBAN fields (guarded so get_all doesn't choke on missing ones)."""
+    fields = EMP_FIELDS[:]
+    for cf in _base_fieldnames(template):
+        if cf not in fields and _field_exists("Employee", cf):
+            fields.append(cf)
+    for f in IBAN_FIELDS:
+        if f not in fields and _field_exists("Employee", f):
+            fields.append(f)
+    return fields
+
+
 def _scope_employees(template):
     """Active employees on the template's project. No Work Location filter —
     custom_location is often blank for these clients and would drop everyone."""
     filters = {"status": "Active"}
     if template.project:
         filters["project"] = template.project
-
-    fields = EMP_FIELDS[:]
-    for cf in _base_fieldnames(template):
-        if cf not in fields and _field_exists("Employee", cf):
-            fields.append(cf)
-    return frappe.get_all("Employee", filters=filters, fields=fields)
+    return frappe.get_all("Employee", filters=filters,
+                          fields=_emp_field_list(template))
 
 
 def _employees_by_iqama(iqamas, template):
@@ -268,14 +281,10 @@ def _employees_by_iqama(iqamas, template):
     iqamas = [i for i in dict.fromkeys(iqamas) if i]
     if not iqamas:
         return []
-    fields = EMP_FIELDS[:]
-    for cf in _base_fieldnames(template):
-        if cf not in fields and _field_exists("Employee", cf):
-            fields.append(cf)
     return frappe.get_all(
         "Employee",
         filters={"status": "Active", "iqama_national_id": ["in", iqamas]},
-        fields=fields,
+        fields=_emp_field_list(template),
     )
 
 
@@ -311,6 +320,15 @@ def _field_exists(doctype, fieldname):
 
 def _zero():
     return {"overtime": 0.0, "other_income": 0.0, "deductions": 0.0}
+
+
+def _emp_iban(emp):
+    """First non-empty IBAN-ish value on the Employee."""
+    for f in IBAN_FIELDS:
+        v = emp.get(f)
+        if v:
+            return v
+    return ""
 
 
 def _norm(v):
@@ -396,7 +414,7 @@ def _build_row(emp, base, d, period_days):
         "match_confidence": 1.0,
         "raw_id_value": emp.get("iqama_national_id") or emp.get("passport_number") or "",
         "raw_name": emp.get("employee_name") or "",
-        "raw_iban": emp.get("bank_ac_no") or "",
+        "raw_iban": _emp_iban(emp),
         "raw_nationality": emp.get("nationality") or "",
         "basic_per_contract": base["basic"],
         "housing_per_contract": base["housing"],
