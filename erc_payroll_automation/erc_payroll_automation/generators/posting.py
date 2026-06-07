@@ -180,7 +180,13 @@ def post(run_name, user=None):
             )
 
         period_start = getdate(run.payroll_period_start)
-        payroll_date = run.posting_date or run.payroll_period_end
+        # Additional Salary must fall INSIDE the payroll month, otherwise a
+        # record can leak into the wrong month's slip. Clamp posting_date into
+        # [period_start, period_end]; default to period_end.
+        period_end = getdate(run.payroll_period_end)
+        payroll_date = getdate(run.posting_date) if run.posting_date else period_end
+        if payroll_date < period_start or payroll_date > period_end:
+            payroll_date = period_end
 
         # ---- 1. Apply approved fixed-pay changes (Employee + new SSA) --------
         # Group approved changes by employee
@@ -576,23 +582,30 @@ def _create_draft_payroll_entry(run):
     pe.flags.ignore_permissions = True
     pe.insert(ignore_permissions=True)
 
-    # Auto-create a Salary Structure Assignment for any active scoped employee
-    # that has none (e.g. new hires) — using their current Employee base pay —
-    # so they aren't silently dropped from the Payroll Entry.
-    _ensure_payroll_ssas(run, company, work_location, location_field)
+    # The Payroll Entry must follow the approved file: scope to exactly the
+    # employees in the sheet. Fall back to project scope only if the sheet
+    # can't be read.
+    sheet_emp_ids = _sheet_employee_ids(run) or None
 
-    # Scope employees ourselves (project + work location + active SSA).
-    employees = _eligible_employees(run, company, work_location, location_field)
+    # Auto-create a Salary Structure Assignment for any employee missing one
+    # (e.g. new hires) from their current Employee base pay, so they aren't
+    # silently dropped from the Payroll Entry.
+    _ensure_payroll_ssas(run, company, work_location, location_field,
+                         emp_ids=sheet_emp_ids)
+
+    employees = _eligible_employees(run, company, work_location, location_field,
+                                    emp_ids=sheet_emp_ids)
     if not employees:
         # Don't leave an empty shell PE behind.
         frappe.delete_doc("Payroll Entry", pe.name,
                           ignore_permissions=True, force=True)
-        loc = f" / work location '{work_location}'" if work_location else ""
+        scope = ("the approved sheet" if sheet_emp_ids
+                 else f"project '{run.project}'")
         raise ValueError(
-            f"No eligible employees found for project '{run.project}'{loc} in "
+            f"No eligible employees found from {scope} in "
             f"{run.payroll_period_start} - {run.payroll_period_end}. "
-            f"Check that employees have Project set and an active Salary "
-            f"Structure Assignment covering this period."
+            f"Check that the employees have an active Salary Structure "
+            f"Assignment covering this period."
         )
     for e in employees:
         pe.append("employees", {
@@ -606,30 +619,55 @@ def _create_draft_payroll_entry(run):
     return pe.name
 
 
-def _ensure_payroll_ssas(run, company, work_location=None,
-                         location_field="custom_location"):
-    """For every active scoped employee missing a usable Salary Structure
-    Assignment, create one from their current Employee base pay so new hires
-    get into payroll. Returns the number of SSAs created.
+def _sheet_employee_ids(run):
+    """Employee IDs present in the approved Internal Sheet, so the Payroll
+    Entry follows the file. Returns [] if the sheet can't be read (caller
+    falls back to project scope)."""
+    if not run.approved_sheet:
+        return []
+    try:
+        rows = _read_sheet(run)
+    except Exception:
+        frappe.log_error(
+            title=f"Payroll Posting: sheet re-read for PE scope failed ({run.name})",
+            message=frappe.get_traceback())
+        return []
+    out, seen = [], set()
+    for r in rows:
+        eid = str(r.get("employee") or "").strip()
+        if eid and eid not in seen and frappe.db.exists("Employee", eid):
+            seen.add(eid)
+            out.append(eid)
+    return out
 
-    Skips employees with no basic salary (can't build a meaningful SSA) and
-    logs them. No-op if the run has no Salary Structure (trigger_post already
-    blocks posting in that case).
+
+def _ensure_payroll_ssas(run, company, work_location=None,
+                         location_field="custom_location", emp_ids=None):
+    """For every employee missing a usable Salary Structure Assignment, create
+    one from their current Employee base pay so new hires get into payroll.
+    Returns the number of SSAs created.
+
+    When ``emp_ids`` is given (the sheet's employees) those are used; otherwise
+    falls back to the project/work-location scope. Skips employees with no basic
+    salary (can't build a meaningful SSA) and logs them. No-op if the run has no
+    Salary Structure (trigger_post already blocks posting in that case).
     """
     salary_structure = run.salary_structure
     if not salary_structure:
         return 0
 
-    emp_meta = frappe.get_meta("Employee")
-    filters = {"status": "Active"}
-    if company and emp_meta.has_field("company"):
-        filters["company"] = company
-    if run.project and emp_meta.has_field("project"):
-        filters["project"] = run.project
-    if work_location and emp_meta.has_field(location_field):
-        filters[location_field] = work_location
-
-    emps = frappe.get_all("Employee", filters=filters, pluck="name")
+    if emp_ids is not None:
+        emps = list(emp_ids)
+    else:
+        emp_meta = frappe.get_meta("Employee")
+        filters = {"status": "Active"}
+        if company and emp_meta.has_field("company"):
+            filters["company"] = company
+        if run.project and emp_meta.has_field("project"):
+            filters["project"] = run.project
+        if work_location and emp_meta.has_field(location_field):
+            filters[location_field] = work_location
+        emps = frappe.get_all("Employee", filters=filters, pluck="name")
     if not emps:
         return 0
 
@@ -676,27 +714,37 @@ def _ensure_payroll_ssas(run, company, work_location=None,
 
 
 def _eligible_employees(run, company, work_location=None,
-                        location_field="custom_location"):
-    """Active employees on the run's project (+ optional work location) that
-    have a submitted Salary Structure Assignment covering the period.
+                        location_field="custom_location", emp_ids=None):
+    """Employees to put on the Payroll Entry that have a submitted Salary
+    Structure Assignment covering the period.
 
-    Built explicitly (not via pe.get_emp_list) so payroll scoping does NOT
-    depend on the manual HRMS core patch that Frappe Cloud wipes on rebuild.
+    When ``emp_ids`` is given (the approved sheet's employees) the PE follows
+    the file exactly; otherwise falls back to the project/work-location scope.
+    Built explicitly (not via pe.get_emp_list) so scoping does NOT depend on the
+    manual HRMS core patch that Frappe Cloud wipes on rebuild.
     """
-    emp_meta = frappe.get_meta("Employee")
-    filters = {"status": "Active"}
-    if company and emp_meta.has_field("company"):
-        filters["company"] = company
-    if run.project and emp_meta.has_field("project"):
-        filters["project"] = run.project
-    if work_location and emp_meta.has_field(location_field):
-        filters[location_field] = work_location
-
-    emps = frappe.get_all(
-        "Employee", filters=filters,
-        fields=["name", "employee_name", "department", "designation"],
-        order_by="employee_name asc",
-    )
+    if emp_ids is not None:
+        if not emp_ids:
+            return []
+        emps = frappe.get_all(
+            "Employee", filters={"name": ["in", list(emp_ids)]},
+            fields=["name", "employee_name", "department", "designation"],
+            order_by="employee_name asc",
+        )
+    else:
+        emp_meta = frappe.get_meta("Employee")
+        filters = {"status": "Active"}
+        if company and emp_meta.has_field("company"):
+            filters["company"] = company
+        if run.project and emp_meta.has_field("project"):
+            filters["project"] = run.project
+        if work_location and emp_meta.has_field(location_field):
+            filters[location_field] = work_location
+        emps = frappe.get_all(
+            "Employee", filters=filters,
+            fields=["name", "employee_name", "department", "designation"],
+            order_by="employee_name asc",
+        )
     if not emps:
         return []
 

@@ -29,7 +29,7 @@ COLUMNS = [
     ("Nationality",          "raw_nationality",               "data"),
     ("ID/Iqama/ passprot",   "raw_id_value",                  "data"),
     ("Bank Name",            None,                            "computed:bank_name"),
-    ("IBAN/ Account number", "raw_iban",                      "data"),
+    ("IBAN/ Account number", "raw_iban",                      "computed:iban"),
     ("Basic per contract",   "basic_per_contract",            "data"),
     ("Working Days",         "working_days",                  "data"),
     ("Baisc",                "basic_per_working_days",        "data"),
@@ -61,6 +61,53 @@ DEFAULT_ERC_FEE = 600
 DEFAULT_BANK_CHARGES = 5
 DEFAULT_GOSI_BILLING_RATE_SAUDI = 11.75      # employer share for Saudis
 DEFAULT_GOSI_BILLING_RATE_NON_SAUDI = 2.0    # occupational hazard for non-Saudis
+# GOSI is only charged on (Basic + Housing) up to this cap. Above 45K the
+# contribution base is fixed at 45K.
+GOSI_BILLING_CAP = 45000
+
+
+def _is_saudi(emp):
+    nationality = (emp or {}).get("nationality") if isinstance(emp, dict) \
+        else getattr(emp, "nationality", None)
+    return (nationality or "").strip().lower() in ("saudi arabia", "saudi", "ksa", "sa")
+
+
+def _gosi_billing(row, emp, new_joiner=False):
+    """Employer GOSI for billing: rate on (Basic+Housing), base capped at 45K.
+
+    New joiners (first payroll) are billed GOSI on their actual worked-days
+    Basic+Housing. Existing employees are billed on the FULL contract
+    Basic+Housing even if they worked a partial month (so a mid-month unpaid
+    leave doesn't shrink GOSI). Contract columns fall back to the worked-days
+    values when not provided in the file.
+    """
+    rate = DEFAULT_GOSI_BILLING_RATE_SAUDI if _is_saudi(emp) \
+        else DEFAULT_GOSI_BILLING_RATE_NON_SAUDI
+    if new_joiner:
+        base = _f(row.basic_per_working_days) + _f(row.housing_per_working_days)
+    else:
+        base = (_f(row.basic_per_contract) or _f(row.basic_per_working_days)) \
+             + (_f(row.housing_per_contract) or _f(row.housing_per_working_days))
+    return round(min(base, GOSI_BILLING_CAP) * rate / 100, 2)
+
+
+def _is_new_joiner(emp_id, period_start, cache):
+    """New joiner = no submitted Salary Slip ending before this payroll period."""
+    if not emp_id or not period_start:
+        return False
+    if emp_id in cache:
+        return cache[emp_id]
+    has_prior = frappe.db.exists("Salary Slip", {
+        "employee": emp_id, "docstatus": 1, "end_date": ["<", period_start],
+    })
+    cache[emp_id] = not has_prior
+    return cache[emp_id]
+
+
+def _bank_charges_for(row):
+    """No bank transfer charge when the employee's net pay is 0 (nothing
+    transferred). ERC fee + GOSI still apply."""
+    return 0 if _f(row.net_salary_from_file) == 0 else DEFAULT_BANK_CHARGES
 
 FILL_ERROR = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
 FILL_WARNING = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
@@ -73,14 +120,15 @@ def generate(run, template) -> str:
     """Build the internal sheet from a Payroll Import Run, attach as `internal_sheet_file`."""
     project_name = _project_display_name(template)
     month_label = _month_label(run.payroll_period_end or run.posting_date)
-    wb = build_workbook(run.parsed_rows, template, project_name, month_label)
+    wb = build_workbook(run.parsed_rows, template, project_name, month_label,
+                        period_start=run.payroll_period_start)
     filename = f"RSG- {project_name} Payroll - {month_label}.xlsx".replace("  ", " ")
     return save_excel_and_link(
         wb, run.name, "internal_sheet_file", filename, "Internal Sheet",
     )
 
 
-def build_workbook(rows, template, project_name, month_label):
+def build_workbook(rows, template, project_name, month_label, period_start=None):
     """Build the internal-sheet workbook from any iterable of row-like objects.
 
     Used by both the file-based Payroll Import Run and the no-file
@@ -105,12 +153,24 @@ def build_workbook(rows, template, project_name, month_label):
         c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         c.border = BORDER
 
+    from openpyxl.comments import Comment
+
     emp_cache = {}
+    nj_cache = {}
     for serial, row in enumerate(rows, start=1):
         emp = _get_employee(getattr(row, "employee", None), emp_cache)
         excel_row = 4 + serial
+        new_joiner = _is_new_joiner(getattr(row, "employee", None),
+                                    period_start, nj_cache)
+        iban_value, iban_warn = _iban_cell(row, emp)
+        iban_col_idx = None
         for col_idx, (_, field, kind) in enumerate(COLUMNS, start=1):
-            value = _resolve(row, emp, template, kind, field, serial)
+            if kind == "computed:iban":
+                value = iban_value
+                iban_col_idx = col_idx
+            else:
+                value = _resolve(row, emp, template, kind, field, serial,
+                                 new_joiner)
             if value is None:
                 continue
             cell = ws.cell(row=excel_row, column=col_idx, value=value)
@@ -129,10 +189,17 @@ def build_workbook(rows, template, project_name, month_label):
                 ws.cell(row=excel_row, column=col_idx).fill = fill
             msgs = getattr(row, "validation_messages", None)
             if msgs:
-                from openpyxl.comments import Comment
                 ws.cell(row=excel_row, column=1).comment = Comment(
                     msgs[:2000], "ERC Payroll Automation"
                 )
+
+        # IBAN cell: yellow-flag a substituted/changed/invalid IBAN. Keep the
+        # comment even on Error rows; only paint yellow if the row isn't red.
+        if iban_warn and iban_col_idx:
+            cell = ws.cell(row=excel_row, column=iban_col_idx)
+            if fill is not FILL_ERROR:
+                cell.fill = FILL_WARNING
+            cell.comment = Comment(iban_warn[:2000], "ERC Payroll Automation")
 
     if rows:
         total_row_idx = 4 + len(rows) + 1
@@ -177,7 +244,7 @@ def _write_totals_row(ws, total_row_idx, first_data_row, last_data_row):
             cell.font = Font(bold=True)
 
 
-def _resolve(row, emp, template, kind, field, serial):
+def _resolve(row, emp, template, kind, field, serial, new_joiner=False):
     if kind == "blank":
         return None
     if kind == "data":
@@ -198,24 +265,16 @@ def _resolve(row, emp, template, kind, field, serial):
     if kind == "computed:charge_base":
         return _f(row.total_per_contract)
     if kind == "computed:gosi_billing":
-        # employer-side GOSI for the billing block
-        nationality = (emp or {}).get("nationality") if isinstance(emp, dict) else getattr(emp, "nationality", None)
-        is_saudi = (nationality or "").strip().lower() in ("saudi arabia", "saudi", "ksa", "sa")
-        rate = DEFAULT_GOSI_BILLING_RATE_SAUDI if is_saudi else DEFAULT_GOSI_BILLING_RATE_NON_SAUDI
-        base = _f(row.basic_per_working_days) + _f(row.housing_per_working_days)
-        return round(base * rate / 100, 2)
+        # employer-side GOSI for the billing block (base capped at 45K)
+        return _gosi_billing(row, emp, new_joiner)
     if kind == "constant:erc_fee":
         return DEFAULT_ERC_FEE
     if kind == "constant:bank_charges":
-        return DEFAULT_BANK_CHARGES
+        return _bank_charges_for(row)
     if kind == "computed:billing_total":
         total = _f(row.total_per_contract)
-        nationality = (emp or {}).get("nationality") if isinstance(emp, dict) else getattr(emp, "nationality", None)
-        is_saudi = (nationality or "").strip().lower() in ("saudi arabia", "saudi", "ksa", "sa")
-        rate = DEFAULT_GOSI_BILLING_RATE_SAUDI if is_saudi else DEFAULT_GOSI_BILLING_RATE_NON_SAUDI
-        base = _f(row.basic_per_working_days) + _f(row.housing_per_working_days)
-        gosi = round(base * rate / 100, 2)
-        return round(total + gosi + DEFAULT_ERC_FEE + DEFAULT_BANK_CHARGES, 2)
+        return round(total + _gosi_billing(row, emp, new_joiner) + DEFAULT_ERC_FEE
+                     + _bank_charges_for(row), 2)
     return None
 
 
@@ -231,14 +290,61 @@ def _get_employee(emp_id, cache):
         return None
     if emp_id in cache:
         return cache[emp_id]
-    e = frappe.db.get_value(
-        "Employee", emp_id,
-        ["employee_name", "employment_type", "date_of_joining",
-         "nationality", "bank_name", "bank_ac_no"],
-        as_dict=True,
-    )
+    fields = ["employee_name", "employment_type", "date_of_joining",
+              "nationality", "bank_name", "bank_ac_no"]
+    meta = frappe.get_meta("Employee")
+    for f in ("iban", "custom_iban", "bank_account_no"):
+        if meta.has_field(f) and f not in fields:
+            fields.append(f)
+    e = frappe.db.get_value("Employee", emp_id, fields, as_dict=True)
     cache[emp_id] = e
     return e
+
+
+# IBAN fields on Employee, in priority order (first non-empty wins).
+_IBAN_EMP_FIELDS = ("iban", "custom_iban", "bank_ac_no", "bank_account_no")
+
+
+def _clean_iban(value):
+    if not value:
+        return ""
+    return "".join(c for c in str(value) if c.isalnum()).upper()
+
+
+def _emp_iban(emp):
+    if not emp:
+        return ""
+    for f in _IBAN_EMP_FIELDS:
+        v = emp.get(f) if isinstance(emp, dict) else getattr(emp, f, None)
+        if v:
+            return v
+    return ""
+
+
+def _iban_cell(row, emp):
+    """Decide the IBAN to print + an optional yellow-warning message.
+
+    - File IBAN matches system  -> print it, no warning.
+    - File IBAN invalid/missing -> use the system IBAN (if valid) + warn.
+    - File IBAN valid but differs from system -> use system IBAN + warn (the
+      customer may have changed it; finance should verify).
+    """
+    file_iban = _clean_iban(getattr(row, "raw_iban", None))
+    sys_iban = _clean_iban(_emp_iban(emp))
+
+    def valid(s):
+        return bool(s) and len(s) == 24 and s.startswith("SA")
+
+    if file_iban and sys_iban and file_iban == sys_iban:
+        return file_iban, None
+    if not valid(file_iban):
+        if valid(sys_iban):
+            return sys_iban, "File IBAN invalid/missing — used system IBAN"
+        return (file_iban or sys_iban or ""), "No valid 24-char SA IBAN found"
+    if sys_iban and file_iban != sys_iban:
+        return sys_iban, ("IBAN in file ({0}) differs from system — used system IBAN"
+                          .format(file_iban))
+    return file_iban, None
 
 
 def _project_display_name(template):

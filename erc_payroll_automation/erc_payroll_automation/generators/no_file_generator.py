@@ -44,7 +44,8 @@ def generate_no_file_outputs(run_name: str, user: str = None):
         month_label = internal_sheet._month_label(
             run.payroll_period_end or run.posting_date
         )
-        wb = internal_sheet.build_workbook(rows, template, project_name, month_label)
+        wb = internal_sheet.build_workbook(rows, template, project_name, month_label,
+                                           period_start=run.payroll_period_start)
 
         # Step 4: save + attach
         filename = (
