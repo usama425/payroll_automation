@@ -72,8 +72,18 @@ def _is_saudi(emp):
     return (nationality or "").strip().lower() in ("saudi arabia", "saudi", "ksa", "sa")
 
 
+def _in_gosi(emp):
+    """Whether the employee is registered in GOSI (Employee.added_to_gosi).
+    GOSI is only billed for registered employees — it's the employee's choice."""
+    v = (emp or {}).get("added_to_gosi") if isinstance(emp, dict) \
+        else getattr(emp, "added_to_gosi", 0)
+    return bool(v)
+
+
 def _gosi_billing(row, emp, new_joiner=False):
     """Employer GOSI for billing: rate on (Basic+Housing), base capped at 45K.
+
+    Returns 0 for employees not registered in GOSI (added_to_gosi = 0).
 
     New joiners (first payroll) are billed GOSI on their actual worked-days
     Basic+Housing. Existing employees are billed on the FULL contract
@@ -81,6 +91,8 @@ def _gosi_billing(row, emp, new_joiner=False):
     leave doesn't shrink GOSI). Contract columns fall back to the worked-days
     values when not provided in the file.
     """
+    if not _in_gosi(emp):
+        return 0
     rate = DEFAULT_GOSI_BILLING_RATE_SAUDI if _is_saudi(emp) \
         else DEFAULT_GOSI_BILLING_RATE_NON_SAUDI
     if new_joiner:
@@ -291,7 +303,7 @@ def _get_employee(emp_id, cache):
     if emp_id in cache:
         return cache[emp_id]
     fields = ["employee_name", "employment_type", "date_of_joining",
-              "nationality", "bank_name", "bank_ac_no"]
+              "nationality", "added_to_gosi", "bank_name", "bank_ac_no"]
     meta = frappe.get_meta("Employee")
     for f in ("iban", "custom_iban", "bank_account_no"):
         if meta.has_field(f) and f not in fields:
