@@ -47,8 +47,8 @@ COLUMNS = [
     ("Charge Base",          None,                            "computed:charge_base"),
     ("Hiring Date",          None,                            "emp:date_of_joining"),
     (None,                   None,                            "blank"),
-    # Right-side billing block
-    ("Total Salary",         "total_per_contract",            "data"),
+    # Right-side billing block — client is charged on Net Salary + GOSI
+    ("Net Salary",           "net_salary_from_file",          "data"),
     ("Gosi",                 None,                            "computed:gosi_billing"),
     ("ERC Fee",              None,                            "constant:erc_fee"),
     ("Bank Charges",         None,                            "constant:bank_charges"),
@@ -275,7 +275,9 @@ def _resolve(row, emp, template, kind, field, serial, new_joiner=False):
         g = _f(row.gosi_from_file); h = _f(row.hq_deductions); d = _f(row.deductions)
         return round(g + h + d, 2)
     if kind == "computed:charge_base":
-        return _f(row.total_per_contract)
+        # Elite Charge Base = Net Salary + employer GOSI (billed, registered only)
+        return round(_f(row.net_salary_from_file)
+                     + _gosi_billing(row, emp, new_joiner), 2)
     if kind == "computed:gosi_billing":
         # employer-side GOSI for the billing block (base capped at 45K)
         return _gosi_billing(row, emp, new_joiner)
@@ -284,8 +286,9 @@ def _resolve(row, emp, template, kind, field, serial, new_joiner=False):
     if kind == "constant:bank_charges":
         return _bank_charges_for(row)
     if kind == "computed:billing_total":
-        total = _f(row.total_per_contract)
-        return round(total + _gosi_billing(row, emp, new_joiner) + DEFAULT_ERC_FEE
+        # Client invoice = Net Salary + GOSI + ERC Fee + Bank Charges (GOSI once)
+        base = _f(row.net_salary_from_file)
+        return round(base + _gosi_billing(row, emp, new_joiner) + DEFAULT_ERC_FEE
                      + _bank_charges_for(row), 2)
     return None
 
