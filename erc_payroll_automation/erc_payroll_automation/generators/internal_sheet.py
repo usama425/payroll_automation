@@ -47,8 +47,9 @@ COLUMNS = [
     ("Charge Base",          None,                            "computed:charge_base"),
     ("Hiring Date",          None,                            "emp:date_of_joining"),
     (None,                   None,                            "blank"),
-    # Right-side billing block — Net Salary + employer GOSI + fees (GOSI once).
-    ("Net Salary",           "net_salary_from_file",          "data"),
+    # Right-side billing block — TOTAL GROSS (Net + employee GOSI) + employer
+    # GOSI + fees, matching the Elite format's "Charge to Clients" block.
+    ("TOTAL GROSS",          None,                            "computed:charge_base"),
     ("Gosi",                 None,                            "computed:gosi_billing"),
     ("ERC Fee",              None,                            "constant:erc_fee"),
     ("Bank Charges",         None,                            "constant:bank_charges"),
@@ -275,10 +276,12 @@ def _resolve(row, emp, template, kind, field, serial, new_joiner=False):
         g = _f(row.gosi_from_file); h = _f(row.hq_deductions); d = _f(row.deductions)
         return round(g + h + d, 2)
     if kind == "computed:charge_base":
-        # Elite Charge Base = Net Salary + employer GOSI (billed 11.75%/2%,
-        # registered only). Per finance, NOT the employee's GOSI deduction.
-        return round(_f(row.net_salary_from_file)
-                     + _gosi_billing(row, emp, new_joiner), 2)
+        # Elite Charge Base / TOTAL GROSS = Net Salary + the EMPLOYEE's GOSI
+        # deduction added back. Equals gross Total Salary when there are no
+        # deductions; less when there are. (Matches the actual Elite format
+        # file: Charge Base = Net + employee GOSI, e.g. Abdullah 18290.61 +
+        # 1759.39 = 20050.) The EMPLOYER GOSI is billed separately below.
+        return round(_f(row.net_salary_from_file) + _f(row.gosi_from_file), 2)
     if kind == "computed:gosi_billing":
         # employer-side GOSI for the billing block (base capped at 45K)
         return _gosi_billing(row, emp, new_joiner)
@@ -287,11 +290,11 @@ def _resolve(row, emp, template, kind, field, serial, new_joiner=False):
     if kind == "constant:bank_charges":
         return _bank_charges_for(row)
     if kind == "computed:billing_total":
-        # Client invoice = Net Salary + employer GOSI (billed, registered only)
-        # + ERC Fee + Bank Charges. GOSI counted once.
-        base = _f(row.net_salary_from_file)
-        return round(base + _gosi_billing(row, emp, new_joiner) + DEFAULT_ERC_FEE
-                     + _bank_charges_for(row), 2)
+        # Client invoice = TOTAL GROSS (Net + employee GOSI) + employer GOSI
+        # (billed, registered only) + ERC Fee + Bank Charges.
+        charge_base = _f(row.net_salary_from_file) + _f(row.gosi_from_file)
+        return round(charge_base + _gosi_billing(row, emp, new_joiner)
+                     + DEFAULT_ERC_FEE + _bank_charges_for(row), 2)
     return None
 
 
