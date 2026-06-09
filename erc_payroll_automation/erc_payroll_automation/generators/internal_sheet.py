@@ -92,9 +92,12 @@ def _gosi_billing(row, emp, new_joiner=False):
     leave doesn't shrink GOSI). Contract columns fall back to the worked-days
     values when not provided in the file.
     """
-    if not _in_gosi(emp):
+    is_saudi = _is_saudi(emp)
+    # Saudis must be registered in GOSI to be billed (the Amal rule). Non-Saudis
+    # always get the 2% employer occupational-hazard, regardless of added_to_gosi.
+    if is_saudi and not _in_gosi(emp):
         return 0
-    rate = DEFAULT_GOSI_BILLING_RATE_SAUDI if _is_saudi(emp) \
+    rate = DEFAULT_GOSI_BILLING_RATE_SAUDI if is_saudi \
         else DEFAULT_GOSI_BILLING_RATE_NON_SAUDI
     if new_joiner:
         base = _f(row.basic_per_working_days) + _f(row.housing_per_working_days)
