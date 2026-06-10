@@ -120,10 +120,32 @@ def _is_new_joiner(emp_id, period_start, cache):
     return cache[emp_id]
 
 
-def _bank_charges_for(row):
-    """No bank transfer charge when the employee's net pay is 0 (nothing
-    transferred). ERC fee + GOSI still apply."""
-    return 0 if _f(row.net_salary_from_file) == 0 else DEFAULT_BANK_CHARGES
+_PROJECT_FEES = {}
+
+
+def _project_fees(template):
+    """(erc_fee, bank_charge) for the template's project — from Project.erc_fee
+    and Project.bt_charges (what the Sales Invoice uses), falling back to the
+    defaults. Cached per generation (cleared at the start of build_workbook)."""
+    proj = getattr(template, "project", None)
+    if proj not in _PROJECT_FEES:
+        erc, bank = DEFAULT_ERC_FEE, DEFAULT_BANK_CHARGES
+        if proj:
+            d = frappe.db.get_value(
+                "Project", proj, ["erc_fee", "bt_charges"], as_dict=True) or {}
+            if d.get("erc_fee") not in (None, ""):
+                erc = d["erc_fee"]
+            if d.get("bt_charges") not in (None, ""):
+                bank = d["bt_charges"]
+        _PROJECT_FEES[proj] = (erc, bank)
+    return _PROJECT_FEES[proj]
+
+
+def _billable(row):
+    """An employee with net pay 0 (not paid this month — leaver/unpaid) is NOT
+    billed: charge base, GOSI, ERC fee, bank and invoice are all 0, matching
+    the Elite format (net 0 -> every billing column 0)."""
+    return _f(getattr(row, "net_salary_from_file", 0)) != 0
 
 FILL_ERROR = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
 FILL_WARNING = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
@@ -153,6 +175,7 @@ def build_workbook(rows, template, project_name, month_label, period_start=None)
     no-file shape.
     """
     rows = list(rows)
+    _PROJECT_FEES.clear()   # re-read project fees fresh for this generation
     wb = Workbook()
     ws = wb.active
     ws.title = f"RSG- {project_name.upper()}"[:31]
@@ -281,23 +304,30 @@ def _resolve(row, emp, template, kind, field, serial, new_joiner=False):
     if kind == "computed:charge_base":
         # Elite Charge Base / TOTAL GROSS = Net Salary + the EMPLOYEE's GOSI
         # deduction added back. Equals gross Total Salary when there are no
-        # deductions; less when there are. (Matches the actual Elite format
-        # file: Charge Base = Net + employee GOSI, e.g. Abdullah 18290.61 +
-        # 1759.39 = 20050.) The EMPLOYER GOSI is billed separately below.
+        # deductions; less when there are. (Matches the Elite format file:
+        # Abdullah 18290.61 + 1759.39 = 20050.) Employer GOSI is billed
+        # separately below. Net-0 (unpaid) employees are not billed.
+        if not _billable(row):
+            return 0
         return round(_f(row.net_salary_from_file) + _f(row.gosi_from_file), 2)
     if kind == "computed:gosi_billing":
         # employer-side GOSI for the billing block (base capped at 45K)
+        if not _billable(row):
+            return 0
         return _gosi_billing(row, emp, new_joiner)
     if kind == "constant:erc_fee":
-        return DEFAULT_ERC_FEE
+        return _project_fees(template)[0] if _billable(row) else 0
     if kind == "constant:bank_charges":
-        return _bank_charges_for(row)
+        return _project_fees(template)[1] if _billable(row) else 0
     if kind == "computed:billing_total":
         # Client invoice = TOTAL GROSS (Net + employee GOSI) + employer GOSI
-        # (billed, registered only) + ERC Fee + Bank Charges.
+        # (billed, registered only) + ERC Fee + Bank Charges. 0 if unpaid.
+        if not _billable(row):
+            return 0
+        erc, bank = _project_fees(template)
         charge_base = _f(row.net_salary_from_file) + _f(row.gosi_from_file)
         return round(charge_base + _gosi_billing(row, emp, new_joiner)
-                     + DEFAULT_ERC_FEE + _bank_charges_for(row), 2)
+                     + erc + bank, 2)
     return None
 
 
