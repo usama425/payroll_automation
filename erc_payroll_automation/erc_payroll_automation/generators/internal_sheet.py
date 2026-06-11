@@ -8,6 +8,7 @@ Layout (matches historical files like RSG- Misk School Payroll- February 2026.xl
     Row 5+: one row per matched employee, cells highlighted by validation status
 """
 
+import math
 from datetime import datetime
 
 import frappe
@@ -141,11 +142,48 @@ def _project_fees(template):
     return _PROJECT_FEES[proj]
 
 
-def _billable(row):
-    """An employee with net pay 0 (not paid this month — leaver/unpaid) is NOT
-    billed: charge base, GOSI, ERC fee, bank and invoice are all 0, matching
-    the Elite format (net 0 -> every billing column 0)."""
-    return _f(getattr(row, "net_salary_from_file", 0)) != 0
+def _employed(row):
+    """Has a salary this month -> billed ERC Fee + GOSI even when net pay is 0
+    (e.g. fully deducted: Sacido HR-EMP-02022 net 0 but contract 15000 -> GOSI
+    375 + Fee 600). Only truly empty rows (no contract, no worked-days salary,
+    no net — leaver / not-started: HR-EMP-00490) get every billing column 0.
+
+    Checks several signals so it stays correct regardless of which salary field
+    a template's column-map populates (e.g. Riyadh School / Yamama map only
+    basic_per_working_days + net, not basic_per_contract)."""
+    return (_f(getattr(row, "basic_per_contract", 0)) > 0
+            or _f(getattr(row, "total_per_contract", 0)) > 0
+            or _f(getattr(row, "basic_per_working_days", 0)) > 0
+            or _f(getattr(row, "net_salary_from_file", 0)) > 0)
+
+
+def _net_zero(row):
+    """Net pay is 0 this month -> no bank transfer charge (nothing transferred)."""
+    return _f(getattr(row, "net_salary_from_file", 0)) == 0
+
+
+def _period_days(period_start, period_end):
+    """Days in the payroll period — used to count billable months for the fee."""
+    if not period_start or not period_end:
+        return 30
+    try:
+        from frappe.utils import getdate
+        d = (getdate(period_end) - getdate(period_start)).days + 1
+        return d if d > 0 else 30
+    except Exception:
+        return 30
+
+
+def _erc_fee_for(row, template, period_days):
+    """ERC fee = per-month fee x months covered. A new joiner who bridges two
+    months (working days > one month) is billed 2x (Leonie 40 days -> 1200;
+    a normal full month -> 1x). 0 when not employed. Bank does NOT scale."""
+    if not _employed(row):
+        return 0
+    erc = _project_fees(template)[0]
+    wd = _f(getattr(row, "working_days", 0))
+    months = max(1, math.ceil(wd / period_days)) if (period_days and wd) else 1
+    return erc * months
 
 FILL_ERROR = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
 FILL_WARNING = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
@@ -159,14 +197,16 @@ def generate(run, template) -> str:
     project_name = _project_display_name(template)
     month_label = _month_label(run.payroll_period_end or run.posting_date)
     wb = build_workbook(run.parsed_rows, template, project_name, month_label,
-                        period_start=run.payroll_period_start)
+                        period_start=run.payroll_period_start,
+                        period_end=run.payroll_period_end)
     filename = f"RSG- {project_name} Payroll - {month_label}.xlsx".replace("  ", " ")
     return save_excel_and_link(
         wb, run.name, "internal_sheet_file", filename, "Internal Sheet",
     )
 
 
-def build_workbook(rows, template, project_name, month_label, period_start=None):
+def build_workbook(rows, template, project_name, month_label, period_start=None,
+                   period_end=None):
     """Build the internal-sheet workbook from any iterable of row-like objects.
 
     Used by both the file-based Payroll Import Run and the no-file
@@ -176,6 +216,7 @@ def build_workbook(rows, template, project_name, month_label, period_start=None)
     """
     rows = list(rows)
     _PROJECT_FEES.clear()   # re-read project fees fresh for this generation
+    period_days = _period_days(period_start, period_end)
     wb = Workbook()
     ws = wb.active
     ws.title = f"RSG- {project_name.upper()}"[:31]
@@ -209,7 +250,7 @@ def build_workbook(rows, template, project_name, month_label, period_start=None)
                 iban_col_idx = col_idx
             else:
                 value = _resolve(row, emp, template, kind, field, serial,
-                                 new_joiner)
+                                 new_joiner, period_days)
             if value is None:
                 continue
             cell = ws.cell(row=excel_row, column=col_idx, value=value)
@@ -283,7 +324,8 @@ def _write_totals_row(ws, total_row_idx, first_data_row, last_data_row):
             cell.font = Font(bold=True)
 
 
-def _resolve(row, emp, template, kind, field, serial, new_joiner=False):
+def _resolve(row, emp, template, kind, field, serial, new_joiner=False,
+             period_days=30):
     if kind == "blank":
         return None
     if kind == "data":
@@ -302,33 +344,46 @@ def _resolve(row, emp, template, kind, field, serial, new_joiner=False):
         g = _f(row.gosi_from_file); h = _f(row.hq_deductions); d = _f(row.deductions)
         return round(g + h + d, 2)
     if kind == "computed:charge_base":
-        # Elite Charge Base / TOTAL GROSS = Net Salary + the EMPLOYEE's GOSI
-        # deduction added back. Equals gross Total Salary when there are no
-        # deductions; less when there are. (Matches the Elite format file:
-        # Abdullah 18290.61 + 1759.39 = 20050.) Employer GOSI is billed
-        # separately below. Net-0 (unpaid) employees are not billed.
-        if not _billable(row):
+        # Elite Charge Base / TOTAL GROSS = Net + employee GOSI + HQ/ERC Ded
+        # added back (GOSI and the ERC-internal HQ deduction are NOT client
+        # reductions). Equals gross Total Salary when there are no client
+        # deductions. (Abdullah 18290.61+1759.39=20050; Lecia 16284.91+0+35
+        # =16319.91.) 0 for not-employed and naturally 0 when net is 0.
+        if not _employed(row):
             return 0
-        return round(_f(row.net_salary_from_file) + _f(row.gosi_from_file), 2)
+        return round(_charge_base(row), 2)
     if kind == "computed:gosi_billing":
-        # employer-side GOSI for the billing block (base capped at 45K)
-        if not _billable(row):
+        # employer GOSI (base capped at 45K) — charged for employed staff even
+        # when net pay is 0 (Sacido: GOSI 375 with net 0); 0 only if not employed.
+        if not _employed(row):
             return 0
         return _gosi_billing(row, emp, new_joiner)
     if kind == "constant:erc_fee":
-        return _project_fees(template)[0] if _billable(row) else 0
+        # Charged for employed staff even when net pay is 0; scales with months
+        # covered (bridging new joiners pay 2x). 0 only if not employed.
+        return _erc_fee_for(row, template, period_days)
     if kind == "constant:bank_charges":
-        return _project_fees(template)[1] if _billable(row) else 0
+        # Only when employed AND actually paid (net != 0) — no transfer, no charge.
+        return _project_fees(template)[1] \
+            if (_employed(row) and not _net_zero(row)) else 0
     if kind == "computed:billing_total":
-        # Client invoice = TOTAL GROSS (Net + employee GOSI) + employer GOSI
-        # (billed, registered only) + ERC Fee + Bank Charges. 0 if unpaid.
-        if not _billable(row):
+        # Client invoice = Charge Base (Net + employee GOSI) + employer GOSI
+        # (registered only) + ERC Fee + Bank. Not-employed -> 0. Employed but
+        # net-0 -> GOSI + Fee only (no charge base, no bank).
+        if not _employed(row):
             return 0
-        erc, bank = _project_fees(template)
-        charge_base = _f(row.net_salary_from_file) + _f(row.gosi_from_file)
-        return round(charge_base + _gosi_billing(row, emp, new_joiner)
-                     + erc + bank, 2)
+        bank = 0 if _net_zero(row) else _project_fees(template)[1]
+        return round(_charge_base(row) + _gosi_billing(row, emp, new_joiner)
+                     + _erc_fee_for(row, template, period_days) + bank, 2)
     return None
+
+
+def _charge_base(row):
+    """Elite Charge Base = Net + employee GOSI deduction + HQ/ERC deduction
+    (both added back — they're not client-side reductions)."""
+    return (_f(getattr(row, "net_salary_from_file", 0))
+            + _f(getattr(row, "gosi_from_file", 0))
+            + _f(getattr(row, "hq_deductions", 0)))
 
 
 def _f(v):
