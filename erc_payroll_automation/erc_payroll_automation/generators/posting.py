@@ -587,11 +587,15 @@ def _create_draft_payroll_entry(run):
     # can't be read.
     sheet_emp_ids = _sheet_employee_ids(run) or None
 
-    # Auto-create a Salary Structure Assignment for any employee missing one
-    # (e.g. new hires) from their current Employee base pay, so they aren't
-    # silently dropped from the Payroll Entry.
+    # Ensure every sheet employee has a Salary Structure Assignment whose base
+    # equals the sheet's WORKED-DAYS Basic — the amount the slip's Basic must
+    # show. The salary structure's Basic component is `base` and is NOT
+    # payment-day prorated, so a bridging joiner's extra days reach the slip
+    # ONLY through the SSA base; sourcing it from the contract Basic leaves
+    # bridges short. Also creates SSAs for new hires that have none.
+    emp_wd_basic = _sheet_worked_days_basic(run)
     _ensure_payroll_ssas(run, company, work_location, location_field,
-                         emp_ids=sheet_emp_ids)
+                         emp_ids=sheet_emp_ids, emp_wd_basic=emp_wd_basic)
 
     employees = _eligible_employees(run, company, work_location, location_field,
                                     emp_ids=sheet_emp_ids)
@@ -641,20 +645,56 @@ def _sheet_employee_ids(run):
     return out
 
 
+def _sheet_worked_days_basic(run):
+    """Map each sheet employee -> the WORKED-DAYS Basic (the sheet's "Baisc"
+    column = contract Basic x working_days / period_days). This is the amount
+    the slip's Basic must equal, so it becomes the SSA base. Falls back to the
+    contract Basic when the worked-days cell is blank. Empty dict if the sheet
+    can't be read (callers then fall back to Employee.basic_salary)."""
+    if not run.approved_sheet:
+        return {}
+    try:
+        rows = _read_sheet(run)
+    except Exception:
+        frappe.log_error(
+            title=f"Payroll Posting: sheet re-read for SSA base failed ({run.name})",
+            message=frappe.get_traceback())
+        return {}
+    out = {}
+    for r in rows:
+        eid = str(r.get("employee") or "").strip()
+        if not eid:
+            continue
+        wd_basic = flt(r.get("wd_basic"))
+        contract_basic = flt(r.get("contract_basic"))
+        val = wd_basic if wd_basic > 0 else contract_basic
+        if val > 0:
+            out[eid] = val
+    return out
+
+
 def _ensure_payroll_ssas(run, company, work_location=None,
-                         location_field="custom_location", emp_ids=None):
-    """For every employee missing a usable Salary Structure Assignment, create
-    one from their current Employee base pay so new hires get into payroll.
-    Returns the number of SSAs created.
+                         location_field="custom_location", emp_ids=None,
+                         emp_wd_basic=None):
+    """Ensure every in-scope employee has a submitted Salary Structure
+    Assignment whose ``base`` equals the sheet's WORKED-DAYS Basic — the amount
+    the slip's Basic component (formula ``base``, not payment-day prorated) must
+    show. Creates a dated SSA when one is missing OR when the existing base
+    differs (e.g. a bridging joiner whose worked-days Basic exceeds the
+    contract Basic); skips employees already on the right base, so normal
+    (working_days == period) employees are untouched. Returns the count
+    created/updated.
 
     When ``emp_ids`` is given (the sheet's employees) those are used; otherwise
-    falls back to the project/work-location scope. Skips employees with no basic
-    salary (can't build a meaningful SSA) and logs them. No-op if the run has no
-    Salary Structure (trigger_post already blocks posting in that case).
+    falls back to the project/work-location scope. ``emp_wd_basic`` maps
+    employee -> worked-days Basic (from the sheet); employees without an entry
+    fall back to Employee.basic_salary. No-op if the run has no Salary Structure
+    (trigger_post already blocks posting in that case).
     """
     salary_structure = run.salary_structure
     if not salary_structure:
         return 0
+    emp_wd_basic = emp_wd_basic or {}
 
     if emp_ids is not None:
         emps = list(emp_ids)
@@ -671,44 +711,41 @@ def _ensure_payroll_ssas(run, company, work_location=None,
     if not emps:
         return 0
 
-    have_ssa = {
-        r.employee for r in frappe.get_all(
-            "Salary Structure Assignment",
-            filters={"employee": ["in", emps], "docstatus": 1,
-                     "from_date": ["<=", run.payroll_period_end]},
-            fields=["employee"], distinct=True,
-        )
-    }
-
     from_date = getdate(run.payroll_period_start)
     created = 0
     for emp_id in emps:
-        if emp_id in have_ssa:
-            continue
-        base = flt(frappe.db.get_value("Employee", emp_id, "basic_salary"))
-        if base <= 0:
+        # The slip's Basic must equal the worked-days Basic from the sheet; fall
+        # back to the Employee's standing basic pay when the sheet has no value.
+        target_base = flt(emp_wd_basic.get(emp_id))
+        if target_base <= 0:
+            target_base = flt(frappe.db.get_value("Employee", emp_id, "basic_salary"))
+        if target_base <= 0:
             frappe.log_error(
-                title=f"Payroll Posting: no base for auto-SSA {emp_id} ({run.name})",
-                message=f"{emp_id} has no/zero basic_salary — SSA not auto-created.",
+                title=f"Payroll Posting: no base for SSA {emp_id} ({run.name})",
+                message=f"{emp_id} has no worked-days/basic salary — SSA not set.",
             )
             continue
         try:
-            _ensure_ssa(emp_id, salary_structure, from_date, new_base=base,
-                        allowances={}, project=run.project, force=True,
-                        log_lines=[])
-            created += 1
+            # force=False -> _ensure_ssa skips when the latest base already
+            # matches (no churn for unchanged employees) and creates a dated SSA
+            # only when missing or the base differs.
+            made = _ensure_ssa(emp_id, salary_structure, from_date,
+                               new_base=target_base, allowances={},
+                               project=run.project, force=False, log_lines=[])
+            if made == "created":
+                created += 1
         except Exception:
             frappe.log_error(
-                title=f"Payroll Posting: auto-SSA failed {emp_id} ({run.name})",
+                title=f"Payroll Posting: SSA base sync failed {emp_id} ({run.name})",
                 message=frappe.get_traceback(),
             )
 
     if created:
         frappe.db.commit()
         frappe.log_error(
-            title=f"Payroll Posting: auto-created {created} SSA(s) ({run.name})",
-            message=f"Created Salary Structure Assignments for {created} "
-                    f"employee(s) that had none.",
+            title=f"Payroll Posting: synced {created} SSA base(s) ({run.name})",
+            message=f"Created/updated {created} Salary Structure Assignment "
+                    f"base(s) to the sheet's worked-days Basic.",
         )
     return created
 
