@@ -1,3 +1,4 @@
 # frappe itself is provided by the host bench; do not list it here.
 openpyxl>=3.1.2
+xlrd>=2.0.1  # reads legacy .xls files (openpyxl is .xlsx only)
 rapidfuzz>=3.6.0

@@ -237,6 +237,12 @@ def build_workbook(rows, template, project_name, month_label, period_start=None,
 
     emp_cache = {}
     nj_cache = {}
+    # field name -> column index, so change-warnings can flag a specific cell
+    field_col = {}
+    for ci, (_, fld, _k) in enumerate(COLUMNS, start=1):
+        if fld and fld not in field_col:
+            field_col[fld] = ci
+    all_warnings = []
     for serial, row in enumerate(rows, start=1):
         emp = _get_employee(getattr(row, "employee", None), emp_cache)
         excel_row = 4 + serial
@@ -280,6 +286,31 @@ def build_workbook(rows, template, project_name, month_label, period_start=None,
             if fill is not FILL_ERROR:
                 cell.fill = FILL_WARNING
             cell.comment = Comment(iban_warn[:2000], "ERC Payroll Automation")
+
+        # Change warnings (file vs system): Iqama + salary. Yellow-flag the
+        # relevant cell + comment, and collect them for a system-side log.
+        for wfield, wmsg in _change_warnings(row, emp, period_days):
+            wci = field_col.get(wfield)
+            if not wci:
+                continue
+            wcell = ws.cell(row=excel_row, column=wci)
+            if fill is not FILL_ERROR:
+                wcell.fill = FILL_WARNING
+            prev = wcell.comment.text if wcell.comment else ""
+            wcell.comment = Comment((prev + "\n" + wmsg).strip()[:2000],
+                                    "ERC Payroll Automation")
+            all_warnings.append(f"{getattr(row, 'employee', '?')}: {wmsg}")
+
+    # Surface change-warnings in the system too (not just the sheet cells).
+    if all_warnings:
+        try:
+            frappe.log_error(
+                title=f"Payroll sheet change-warnings: {project_name} {month_label}"[:140],
+                message=(f"{len(all_warnings)} file-vs-system change warning(s) on "
+                         f"the generated sheet (also yellow-flagged in-cell):\n\n"
+                         + "\n".join(all_warnings[:300])))
+        except Exception:
+            pass
 
     if rows:
         total_row_idx = 4 + len(rows) + 1
@@ -401,7 +432,10 @@ def _get_employee(emp_id, cache):
     fields = ["employee_name", "employment_type", "date_of_joining",
               "nationality", "added_to_gosi", "bank_name", "bank_ac_no"]
     meta = frappe.get_meta("Employee")
-    for f in ("iban", "custom_iban", "bank_account_no"):
+    # Extra fields used for change-warnings (file vs system): Iqama + salary.
+    for f in ("iban", "custom_iban", "bank_account_no",
+              "iqama_national_id", "basic_salary", "housing_allowance",
+              "transport_allowance", "food_allowance"):
         if meta.has_field(f) and f not in fields:
             fields.append(f)
     e = frappe.db.get_value("Employee", emp_id, fields, as_dict=True)
@@ -453,6 +487,53 @@ def _iban_cell(row, emp):
         return sys_iban, ("IBAN in file ({0}) differs from system — used system IBAN"
                           .format(file_iban))
     return file_iban, None
+
+
+def _emp_attr(emp, name):
+    if not emp:
+        return None
+    return emp.get(name) if isinstance(emp, dict) else getattr(emp, name, None)
+
+
+def _change_warnings(row, emp, period_days):
+    """File-vs-system change warnings to flag on the sheet (and log).
+
+    Returns a list of (target_field, message). target_field maps to a sheet
+    column (``raw_id_value`` -> ID/Iqama, ``basic_per_working_days`` -> Baisc) so
+    the builder can yellow-flag + comment that cell.
+
+    - Iqama: file ID differs from Employee.iqama_national_id.
+    - Salary: file pay differs from the system contract pay (likely a salary
+      change). Only checked for a FULL period (working_days unset or == period)
+      so bridging / partial days — which the slip reconciliation handles — don't
+      false-trigger a "salary changed" warning.
+    """
+    warns = []
+
+    file_id = str(getattr(row, "raw_id_value", "") or "").strip().replace(" ", "")
+    sys_id = str(_emp_attr(emp, "iqama_national_id") or "").strip().replace(" ", "")
+    if file_id and sys_id and file_id != sys_id:
+        warns.append(("raw_id_value",
+                      f"ID/Iqama in file ({file_id}) differs from system ({sys_id})."))
+
+    wd = _f(getattr(row, "working_days", 0))
+    full_period = (not wd) or abs(wd - (period_days or 30)) <= 0.5
+    if full_period:
+        checks = [
+            ("Basic", _f(getattr(row, "basic_per_working_days", 0)),
+             _f(_emp_attr(emp, "basic_salary"))),
+            ("Housing", _f(getattr(row, "housing_per_working_days", 0)),
+             _f(_emp_attr(emp, "housing_allowance"))),
+            ("Transport", _f(getattr(row, "transportation_per_working_days", 0)),
+             _f(_emp_attr(emp, "transport_allowance"))),
+        ]
+        diffs = [f"{label} file {fv:,.2f} vs system {sv:,.2f}"
+                 for label, fv, sv in checks if fv > 0 and abs(fv - sv) > 0.5]
+        if diffs:
+            warns.append(("basic_per_working_days",
+                          "Salary differs from system (possible change): "
+                          + "; ".join(diffs)))
+    return warns
 
 
 def _project_display_name(template):

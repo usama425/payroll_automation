@@ -21,6 +21,61 @@ from ..parser_constants import NUMERIC_FIELDS  # re-exported below for back-comp
 __all__ = ["NUMERIC_FIELDS", "run_parse"]
 
 
+# ---------------------------------------------------------------------------
+# .xls adapter — makes an xlrd workbook look like openpyxl to the rest of this
+# module, so legacy Excel files (some customers still send .xls) don't need a
+# separate parse path. openpyxl only reads .xlsx.
+# ---------------------------------------------------------------------------
+
+class _XlrdSheet:
+    """openpyxl-compatible wrapper around an xlrd Sheet (values_only usage)."""
+
+    def __init__(self, xlrd_ws):
+        self._ws = xlrd_ws
+
+    def iter_rows(self, min_row=1, max_row=None, values_only=False):
+        end = self._ws.nrows if max_row is None else min(max_row, self._ws.nrows)
+        for i in range(min_row - 1, end):
+            yield tuple(self._normalize(v) for v in self._ws.row_values(i))
+
+    @staticmethod
+    def _normalize(v):
+        if v == "":
+            return None
+        # xlrd yields all numbers as float; convert whole numbers to int so
+        # str(2636914109.0) -> "2636914109" (not "2636914109.0") — needed for
+        # Iqama / National-ID fields stored as numbers in the .xls file.
+        if isinstance(v, float) and v == int(v):
+            return int(v)
+        return v
+
+
+class _XlrdWorkbook:
+    """openpyxl-compatible wrapper around an xlrd Workbook."""
+
+    def __init__(self, xlrd_wb):
+        self._wb = xlrd_wb
+
+    @property
+    def sheetnames(self):
+        return self._wb.sheet_names()
+
+    def __getitem__(self, name):
+        return _XlrdSheet(self._wb.sheet_by_name(name))
+
+    def close(self):
+        self._wb.release_resources()
+
+
+def _open_workbook(file_path):
+    """Open .xls via xlrd or .xlsx via openpyxl; return an openpyxl-compatible
+    workbook (sheetnames / wb[name] / ws.iter_rows(values_only=True) / close)."""
+    if str(file_path).lower().endswith(".xls"):
+        import xlrd
+        return _XlrdWorkbook(xlrd.open_workbook(file_path))
+    return load_workbook(file_path, data_only=True, read_only=True)
+
+
 def run_parse(run_name, user=None):
     """Background-job entry point. Called from PayrollImportRun.trigger_parse via frappe.enqueue."""
     frappe.log_error(
@@ -41,13 +96,8 @@ def run_parse(run_name, user=None):
             return
 
         file_path = _resolve_attached_file_path(run.source_file)
-        wb = load_workbook(file_path, data_only=True, read_only=True)
-        sheet_name = template.sheet_name_override or _pick_first_data_sheet(wb)
-        if sheet_name not in wb.sheetnames:
-            raise ValueError(
-                f"Sheet '{sheet_name}' not found in source file. "
-                f"Available sheets: {wb.sheetnames}"
-            )
+        wb = _open_workbook(file_path)
+        sheet_name = _resolve_sheet(wb, template.sheet_name_override)
         ws = wb[sheet_name]
         run.db_set("source_file_sheet_used", sheet_name)
 
@@ -339,6 +389,33 @@ def _resolve_attached_file_path(file_url):
     if file_url.startswith("/"):
         return os.path.join(frappe.get_site_path(), file_url.lstrip("/"))
     return file_url
+
+
+def _resolve_sheet(wb, override):
+    """Pick the worksheet to parse.
+
+    Exact ``sheet_name_override`` wins. Many customer files name the sheet with
+    the month/year (e.g. 'Elite Jun 2026'), which changes every run — so when
+    the exact name isn't present, fall back to a sheet that STARTS WITH the
+    override (case-insensitive), then one that CONTAINS it. This lets a template
+    store a stable prefix like 'Elite' and keep working month to month. Empty
+    override -> first data sheet.
+    """
+    if not override:
+        return _pick_first_data_sheet(wb)
+    if override in wb.sheetnames:
+        return override
+    ov = str(override).strip().lower()
+    for sn in wb.sheetnames:
+        if str(sn).strip().lower().startswith(ov):
+            return sn
+    for sn in wb.sheetnames:
+        if ov in str(sn).strip().lower():
+            return sn
+    raise ValueError(
+        f"Sheet matching '{override}' not found in source file. "
+        f"Available sheets: {wb.sheetnames}"
+    )
 
 
 def _pick_first_data_sheet(wb):

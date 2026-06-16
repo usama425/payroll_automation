@@ -71,7 +71,30 @@ frappe.ui.form.on('Payroll Posting Run', {
                 frm.add_custom_button(__('Open Draft Payroll Entry'), function() {
                     frappe.set_route('Form', 'Payroll Entry', frm.doc.created_payroll_entry);
                 }, __('Actions'));
-                frm.dashboard.add_indicator(__('Posted — review the draft Payroll Entry, then Get Employees + Submit there'), 'green');
+
+                // After Create Salary Slips on the PE (and BEFORE submitting them),
+                // make each slip's Net equal the sheet with one Other Additions /
+                // Deduction for absent line.
+                frm.add_custom_button(__('Reconcile Slips to Sheet'), function() {
+                    frappe.confirm(
+                        __('Reconcile the draft Salary Slips so each one\'s Net equals the sheet?<br><br>Run this AFTER "Create Salary Slips" on the Payroll Entry and BEFORE submitting the slips. It adds a single Other Additions (sheet higher) or Deduction for absent (sheet lower) line per slip. Safe to re-run.'),
+                        function() {
+                            frappe.call({
+                                method: 'erc_payroll_automation.erc_payroll_automation.doctype.payroll_posting_run.payroll_posting_run.trigger_reconcile',
+                                args: { run_name: frm.doc.name },
+                                freeze: true,
+                                freeze_message: __('Reconciling slips to the sheet...'),
+                                callback: function(r) {
+                                    if (r.message && r.message.message) {
+                                        frappe.show_alert({ message: r.message.message, indicator: 'blue' });
+                                    }
+                                }
+                            });
+                        }
+                    );
+                }).addClass('btn-primary');
+
+                frm.dashboard.add_indicator(__('Posted — on the Payroll Entry: Create Salary Slips → "Reconcile Slips to Sheet" → Submit'), 'green');
             } else {
                 frm.dashboard.add_indicator(__('Posted, but Payroll Entry not created — click "Create Payroll Entry"'), 'orange');
             }

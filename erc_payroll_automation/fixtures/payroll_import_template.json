@@ -641,6 +641,93 @@
     },
     {
         "doctype": "Payroll Import Template",
+        "name": "Riyadh Schools 2",
+        "template_name": "Riyadh Schools 2",
+        "is_active": 1,
+        "input_mode": "Full from File",
+        "location_strategy": "Custom Field on Employee",
+        "location_field_on_employee": "custom_location",
+        "sheet_name_override": "Elite",
+        "header_row_index": 1,
+        "skip_blank_id_rows": 1,
+        "name_match_threshold": 0.85,
+        "gosi_rate_saudi": 9.75,
+        "gosi_rate_non_saudi": 0.0,
+        "output_format_override": "Default (37-column RSG-Malqa)",
+        "no_file_emp_field_basic": "basic_salary",
+        "no_file_emp_field_housing": "housing_allowance",
+        "no_file_emp_field_transportation": "transport_allowance",
+        "no_file_emp_field_other_allowance": "food_allowance",
+        "notes": "<p>Auto-installed seed template. Riyadh Schools second Elite bank-transfer variant. Reads the English 'Elite &lt;Month&gt; &lt;Year&gt;' sheet (override prefix 'Elite'). Cols: Bank / Account Number(IBAN) / Net Pay / Transaction Reference(client emp #) / Employee Name / Saudi ID-Iqama / Address / Basic Salary / Housing Allowance / Other Earnings / Deductions. Matches on Iqama (Saudi ID / Iqama), IBAN fallback. Fill in Customer + Project + Filter by Work Location before first use.</p>",
+        "column_map": [
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_name",
+                "source_column_header": "Employee Name",
+                "column_index_fallback": 5,
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_id_value",
+                "source_column_header": "Saudi ID / Iqama",
+                "column_index_fallback": 6,
+                "transform": "trim_whitespace",
+                "is_required": 1
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "raw_iban",
+                "source_column_header": "Account Number",
+                "column_index_fallback": 2,
+                "transform": "iban_normalize",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "net_salary_from_file",
+                "source_column_header": "Net Pay",
+                "column_index_fallback": 3,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "basic_per_working_days",
+                "source_column_header": "Basic Salary",
+                "column_index_fallback": 8,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "housing_per_working_days",
+                "source_column_header": "Housing Allowance",
+                "column_index_fallback": 9,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "other_allowance_per_working_days",
+                "source_column_header": "Other Earnings",
+                "column_index_fallback": 10,
+                "transform": "to_float",
+                "is_required": 0
+            },
+            {
+                "doctype": "Payroll Import Column Map",
+                "target_field": "deductions",
+                "source_column_header": "Deductions",
+                "column_index_fallback": 11,
+                "transform": "to_float",
+                "is_required": 0
+            }
+        ]
+    },
+    {
+        "doctype": "Payroll Import Template",
         "name": "JCD",
         "template_name": "JCD",
         "is_active": 1,

@@ -103,6 +103,35 @@ def create_payroll_entry(run_name):
 
 
 @frappe.whitelist()
+def trigger_reconcile(run_name):
+    """Reconcile the Payroll Entry's DRAFT Salary Slips to the sheet's Net Salary
+    (single Other Additions / Deduction for absent line per slip). Run AFTER
+    'Create Salary Slips' on the Payroll Entry and BEFORE submitting them."""
+    run = frappe.get_doc("Payroll Posting Run", run_name)
+    if not run.created_payroll_entry:
+        frappe.throw(_("No Payroll Entry yet — create it and its Salary Slips first."))
+    drafts = frappe.db.count(
+        "Salary Slip", {"payroll_entry": run.created_payroll_entry, "docstatus": 0})
+    if not drafts:
+        frappe.throw(_(
+            "No DRAFT Salary Slips found on Payroll Entry {0}. Open it and run "
+            "Create Salary Slips first (and don't submit them until after "
+            "reconciling).").format(run.created_payroll_entry))
+
+    frappe.enqueue(
+        method="erc_payroll_automation.erc_payroll_automation.generators.posting.reconcile_payroll_entry",
+        queue="long",
+        timeout=1800,
+        run_name=run.name,
+        user=frappe.session.user,
+        enqueue_after_commit=True,
+    )
+    return {"status": "queued",
+            "message": _("Reconciling {0} draft slip(s) to the sheet. Refresh the "
+                         "Payroll Entry in ~30–60s.").format(drafts)}
+
+
+@frappe.whitelist()
 def cleanup_duplicate_additional_salary(run_name):
     """Cancel duplicate 'overwrite' Additional Salary records for this run's
     project + period, keeping the newest per (employee, salary component).

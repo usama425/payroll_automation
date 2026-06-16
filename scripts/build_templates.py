@@ -114,6 +114,38 @@ riyadh_school = base_template(
 )
 
 # =============================================================================
+# 2b. Riyadh Schools 2 (newer Elite bank-transfer variant)
+# =============================================================================
+# Two-sheet customer file; we read the English "Elite <Month> <Year>" sheet
+# (the Arabic detail sheet only carries a 5-6 digit client number, which can't
+# Iqama-match). Header names differ from "Riyadh School": Employee Name / Saudi
+# ID-Iqama / Account Number / Basic Salary / Housing Allowance / Other Earnings
+# / Deductions / Net Pay. Sheet override is the stable prefix "Elite" (the
+# parser matches "Elite Jun 2026" etc.). Match on Iqama, IBAN fallback.
+riyadh_schools_2 = base_template(
+    "Riyadh Schools 2",
+    sheet_name="Elite",
+    header_row=1,
+    notes="Riyadh Schools second Elite bank-transfer variant. Reads the "
+          "English 'Elite &lt;Month&gt; &lt;Year&gt;' sheet (override prefix "
+          "'Elite'). Cols: Bank / Account Number(IBAN) / Net Pay / Transaction "
+          "Reference(client emp #) / Employee Name / Saudi ID-Iqama / Address / "
+          "Basic Salary / Housing Allowance / Other Earnings / Deductions. "
+          "Matches on Iqama (Saudi ID / Iqama), IBAN fallback. Fill in Customer "
+          "+ Project + Filter by Work Location before first use.",
+    column_map=[
+        s("raw_name", "Employee Name", fallback=5, required=1),
+        s("raw_id_value", "Saudi ID / Iqama", fallback=6, required=1),
+        iban("raw_iban", "Account Number", fallback=2),
+        f("net_salary_from_file", "Net Pay", fallback=3),
+        f("basic_per_working_days", "Basic Salary", fallback=8),
+        f("housing_per_working_days", "Housing Allowance", fallback=9),
+        f("other_allowance_per_working_days", "Other Earnings", fallback=10),
+        f("deductions", "Deductions", fallback=11),
+    ],
+)
+
+# =============================================================================
 # 3. JCD (42-col, custom emp ID prefixed JCDxxx)
 # =============================================================================
 jcd = base_template(
@@ -387,7 +419,7 @@ airproducts = base_template(
 # Combine + write
 # =============================================================================
 new_templates = [
-    arabian_center, riyadh_school, jcd, direct_fn, yamama, cummins,
+    arabian_center, riyadh_school, riyadh_schools_2, jcd, direct_fn, yamama, cummins,
     *ap_hashim_templates,
     rsg_eli, rsg_football, rsg_nursery, rsg_khuzam, rsg_hq, rsg_main,
     rsg_hittin,

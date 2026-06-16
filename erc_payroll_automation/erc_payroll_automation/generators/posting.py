@@ -231,24 +231,15 @@ def post(run_name, user=None):
 
         frappe.db.commit()
 
-        # ---- 2. Submitted Additional Salary for variable components ---------
-        addsal_created = 0
-        for row in run.additional_salary_preview:
-            try:
-                _create_additional_salary(
-                    row.employee, row.salary_component, flt(row.amount),
-                    payroll_date, period_start, run.payroll_period_end,
-                )
-                addsal_created += 1
-            except Exception as e:
-                log_lines.append(
-                    f"[ADDSAL ERROR] {row.employee} {row.salary_component}: {e}"
-                )
-                frappe.log_error(
-                    title=f"Payroll Posting: Additional Salary error ({run_name})",
-                    message=frappe.get_traceback(),
-                )
-        frappe.db.commit()
+        # ---- 2. (Removed) per-column Additional Salary --------------------
+        # We no longer create separate Overtime / Other Additions / Deductions /
+        # HQ Deductions records here. The sheet's Net already nets all of those,
+        # so instead the slip is reconciled to the sheet Net AFTER creation with
+        # a single line (reconcile_payroll_entry): Other Additions when the sheet
+        # is higher, Deduction for absent when lower. This guarantees slip Net ==
+        # sheet Net for every employee (bridges, deductions, salary changes) and
+        # avoids the double-counting that produced the slip-vs-sheet gap.
+        addsal_created = 0  # reconciliation runs as a separate step on the PE
 
         # ---- 3. Draft Payroll Entry ----------------------------------------
         pe_name = None
@@ -587,15 +578,13 @@ def _create_draft_payroll_entry(run):
     # can't be read.
     sheet_emp_ids = _sheet_employee_ids(run) or None
 
-    # Ensure every sheet employee has a Salary Structure Assignment whose base
-    # equals the sheet's WORKED-DAYS Basic — the amount the slip's Basic must
-    # show. The salary structure's Basic component is `base` and is NOT
-    # payment-day prorated, so a bridging joiner's extra days reach the slip
-    # ONLY through the SSA base; sourcing it from the contract Basic leaves
-    # bridges short. Also creates SSAs for new hires that have none.
-    emp_wd_basic = _sheet_worked_days_basic(run)
+    # Auto-create a Salary Structure Assignment for any employee missing one
+    # (e.g. new hires) from their current Employee CONTRACT base pay, so they
+    # aren't silently dropped from the Payroll Entry. Worked-days/bridge
+    # differences are NOT baked into the base — they're reconciled on the slip
+    # after creation (reconcile_payroll_entry).
     _ensure_payroll_ssas(run, company, work_location, location_field,
-                         emp_ids=sheet_emp_ids, emp_wd_basic=emp_wd_basic)
+                         emp_ids=sheet_emp_ids)
 
     employees = _eligible_employees(run, company, work_location, location_field,
                                     emp_ids=sheet_emp_ids)
@@ -645,56 +634,25 @@ def _sheet_employee_ids(run):
     return out
 
 
-def _sheet_worked_days_basic(run):
-    """Map each sheet employee -> the WORKED-DAYS Basic (the sheet's "Baisc"
-    column = contract Basic x working_days / period_days). This is the amount
-    the slip's Basic must equal, so it becomes the SSA base. Falls back to the
-    contract Basic when the worked-days cell is blank. Empty dict if the sheet
-    can't be read (callers then fall back to Employee.basic_salary)."""
-    if not run.approved_sheet:
-        return {}
-    try:
-        rows = _read_sheet(run)
-    except Exception:
-        frappe.log_error(
-            title=f"Payroll Posting: sheet re-read for SSA base failed ({run.name})",
-            message=frappe.get_traceback())
-        return {}
-    out = {}
-    for r in rows:
-        eid = str(r.get("employee") or "").strip()
-        if not eid:
-            continue
-        wd_basic = flt(r.get("wd_basic"))
-        contract_basic = flt(r.get("contract_basic"))
-        val = wd_basic if wd_basic > 0 else contract_basic
-        if val > 0:
-            out[eid] = val
-    return out
-
-
 def _ensure_payroll_ssas(run, company, work_location=None,
-                         location_field="custom_location", emp_ids=None,
-                         emp_wd_basic=None):
-    """Ensure every in-scope employee has a submitted Salary Structure
-    Assignment whose ``base`` equals the sheet's WORKED-DAYS Basic — the amount
-    the slip's Basic component (formula ``base``, not payment-day prorated) must
-    show. Creates a dated SSA when one is missing OR when the existing base
-    differs (e.g. a bridging joiner whose worked-days Basic exceeds the
-    contract Basic); skips employees already on the right base, so normal
-    (working_days == period) employees are untouched. Returns the count
-    created/updated.
+                         location_field="custom_location", emp_ids=None):
+    """For every employee missing a usable Salary Structure Assignment, create
+    one from their current Employee base pay so new hires get into payroll.
+    Returns the number of SSAs created.
+
+    The base stays the employee's CONTRACT basic pay (not the sheet's worked-days
+    Basic): worked-days / bridging differences are reconciled on the slip after
+    creation via a single Other Additions / Deduction for absent line
+    (reconcile_payroll_entry), so the contract salary is never overwritten.
 
     When ``emp_ids`` is given (the sheet's employees) those are used; otherwise
-    falls back to the project/work-location scope. ``emp_wd_basic`` maps
-    employee -> worked-days Basic (from the sheet); employees without an entry
-    fall back to Employee.basic_salary. No-op if the run has no Salary Structure
-    (trigger_post already blocks posting in that case).
+    falls back to the project/work-location scope. Skips employees with no basic
+    salary (can't build a meaningful SSA) and logs them. No-op if the run has no
+    Salary Structure (trigger_post already blocks posting in that case).
     """
     salary_structure = run.salary_structure
     if not salary_structure:
         return 0
-    emp_wd_basic = emp_wd_basic or {}
 
     if emp_ids is not None:
         emps = list(emp_ids)
@@ -711,41 +669,44 @@ def _ensure_payroll_ssas(run, company, work_location=None,
     if not emps:
         return 0
 
+    have_ssa = {
+        r.employee for r in frappe.get_all(
+            "Salary Structure Assignment",
+            filters={"employee": ["in", emps], "docstatus": 1,
+                     "from_date": ["<=", run.payroll_period_end]},
+            fields=["employee"], distinct=True,
+        )
+    }
+
     from_date = getdate(run.payroll_period_start)
     created = 0
     for emp_id in emps:
-        # The slip's Basic must equal the worked-days Basic from the sheet; fall
-        # back to the Employee's standing basic pay when the sheet has no value.
-        target_base = flt(emp_wd_basic.get(emp_id))
-        if target_base <= 0:
-            target_base = flt(frappe.db.get_value("Employee", emp_id, "basic_salary"))
-        if target_base <= 0:
+        if emp_id in have_ssa:
+            continue
+        base = flt(frappe.db.get_value("Employee", emp_id, "basic_salary"))
+        if base <= 0:
             frappe.log_error(
-                title=f"Payroll Posting: no base for SSA {emp_id} ({run.name})",
-                message=f"{emp_id} has no worked-days/basic salary — SSA not set.",
+                title=f"Payroll Posting: no base for auto-SSA {emp_id} ({run.name})",
+                message=f"{emp_id} has no/zero basic_salary — SSA not auto-created.",
             )
             continue
         try:
-            # force=False -> _ensure_ssa skips when the latest base already
-            # matches (no churn for unchanged employees) and creates a dated SSA
-            # only when missing or the base differs.
-            made = _ensure_ssa(emp_id, salary_structure, from_date,
-                               new_base=target_base, allowances={},
-                               project=run.project, force=False, log_lines=[])
-            if made == "created":
-                created += 1
+            _ensure_ssa(emp_id, salary_structure, from_date, new_base=base,
+                        allowances={}, project=run.project, force=True,
+                        log_lines=[])
+            created += 1
         except Exception:
             frappe.log_error(
-                title=f"Payroll Posting: SSA base sync failed {emp_id} ({run.name})",
+                title=f"Payroll Posting: auto-SSA failed {emp_id} ({run.name})",
                 message=frappe.get_traceback(),
             )
 
     if created:
         frappe.db.commit()
         frappe.log_error(
-            title=f"Payroll Posting: synced {created} SSA base(s) ({run.name})",
-            message=f"Created/updated {created} Salary Structure Assignment "
-                    f"base(s) to the sheet's worked-days Basic.",
+            title=f"Payroll Posting: auto-created {created} SSA(s) ({run.name})",
+            message=f"Created Salary Structure Assignments for {created} "
+                    f"employee(s) that had none.",
         )
     return created
 
@@ -795,3 +756,185 @@ def _eligible_employees(run, company, work_location=None,
         )
     }
     return [e for e in emps if e.name in ssa_emps]
+
+
+# ---------------------------------------------------------------------------
+# Post-slip reconciliation — make each DRAFT Salary Slip's Net equal the sheet
+# ---------------------------------------------------------------------------
+#
+# The Elite sheet's Net already nets everything: overtime, other income,
+# deductions, employee GOSI, and worked-days / bridging differences. Instead of
+# re-deriving those as separate slip components (which double-counted and left a
+# slip-vs-sheet gap), the slip computes from the CONTRACT base + structure GOSI,
+# then ONE line closes the gap to the sheet Net:
+#   sheet Net > slip Net  ->  "Other Additions"      (extra days / additions)
+#   sheet Net < slip Net  ->  "Deduction for absent" (fewer days / deductions)
+
+RECON_EARNING = "Other Additions"
+RECON_DEDUCTION = "Deduction for absent"
+# Components the posting owns from the sheet — cleared before reconciling so the
+# slip base is clean and re-running is idempotent (no stacking, no HRMS "multiple
+# overwrite" error). Employee GOSI is a separate structure component and is
+# intentionally NOT in this list (it must stay on the slip).
+RECON_MANAGED_COMPONENTS = [
+    "Overtime", "Other Additions", "Deductions", "HQ Deductions", RECON_DEDUCTION,
+]
+
+
+def reconcile_payroll_entry(run_name, user=None):
+    """Reconcile every DRAFT Salary Slip on the run's Payroll Entry to the
+    approved sheet's Net Salary, using a single Additional Salary line per slip.
+    Idempotent (clears its own prior lines and recomputes from base each run).
+    Slips must be DRAFT (docstatus 0); submitted slips are reported and skipped."""
+    _set_user(user)
+    run = frappe.get_doc("Payroll Posting Run", run_name)
+    pe_name = run.created_payroll_entry
+    if not pe_name or not frappe.db.exists("Payroll Entry", pe_name):
+        raise ValueError(
+            "No Payroll Entry is linked to this run yet — create it and its "
+            "Salary Slips first, then reconcile.")
+
+    sheet_net = _sheet_net_by_emp(run)
+    if not sheet_net:
+        raise ValueError(
+            "Could not read 'Net Salary' from the approved sheet — is it the "
+            "generated Internal Sheet?")
+
+    period_start = getdate(run.payroll_period_start)
+    period_end = getdate(run.payroll_period_end)
+    payroll_date = getdate(run.posting_date) if run.posting_date else period_end
+    if payroll_date < period_start or payroll_date > period_end:
+        payroll_date = period_end
+
+    slips = frappe.get_all(
+        "Salary Slip",
+        filters={"payroll_entry": pe_name, "docstatus": 0},
+        fields=["name", "employee", "employee_name"])
+    submitted = frappe.db.count(
+        "Salary Slip", {"payroll_entry": pe_name, "docstatus": 1})
+
+    reconciled = matched = skipped = 0
+    log = []
+    for s in slips:
+        target = sheet_net.get(s.employee)
+        if target is None:
+            skipped += 1
+            log.append(f"[NO SHEET ROW] {s.employee} ({s.employee_name}) is on the "
+                       f"PE but not in the sheet — slip left unchanged.")
+            continue
+        try:
+            # 1. clear posting-owned lines so the slip recomputes to a clean base
+            _clear_managed_addsal(s.employee, period_start, period_end)
+            slip = frappe.get_doc("Salary Slip", s.name)
+            slip.save(ignore_permissions=True)            # recompute base Net
+            base_net = flt(slip.net_pay)
+            diff = round(flt(target) - base_net, 2)
+            if abs(diff) < 0.01:
+                matched += 1
+                continue
+            # 2. one reconciliation line, then recompute with it
+            comp = RECON_EARNING if diff > 0 else RECON_DEDUCTION
+            _create_recon_addsal(s.employee, comp, abs(diff), payroll_date)
+            slip.reload()
+            slip.save(ignore_permissions=True)
+            reconciled += 1
+            ok = abs(flt(slip.net_pay) - flt(target)) < 0.05
+            log.append(f"[RECON{'' if ok else ' CHECK'}] {s.employee} "
+                       f"base {base_net:.2f} -> sheet {flt(target):.2f} "
+                       f"({comp} {abs(diff):.2f}); slip now {flt(slip.net_pay):.2f}")
+        except Exception as e:
+            log.append(f"[RECON ERROR] {s.employee}: {e}")
+            frappe.log_error(
+                title=f"Payroll reconcile error {s.employee} ({run_name})",
+                message=frappe.get_traceback())
+    frappe.db.commit()
+
+    summary = (f"Reconciled {reconciled} slip(s) to the sheet Net; "
+               f"{matched} already matched; {skipped} not found in sheet.")
+    if submitted:
+        summary += (f" {submitted} already-submitted slip(s) were skipped — "
+                    f"reconcile BEFORE submitting.")
+    frappe.log_error(title=f"Payroll reconcile COMPLETE: {run_name}",
+                     message=summary + "\n\n" + "\n".join(log[:300]))
+    return {"reconciled": reconciled, "matched": matched, "skipped": skipped,
+            "submitted_skipped": submitted, "message": summary}
+
+
+def _sheet_net_by_emp(run):
+    """{employee -> Net Salary} read from the approved Internal Sheet."""
+    from openpyxl import load_workbook
+    if not run.approved_sheet:
+        return {}
+    path = _resolve_attached_file_path(run.approved_sheet)
+    wb = load_workbook(path, data_only=True, read_only=True)
+    ws = wb[wb.sheetnames[0]]
+    all_rows = list(ws.iter_rows(values_only=True))
+    wb.close()
+
+    header_idx = None
+    for i, row in enumerate(all_rows[:12]):
+        norm = [str(c).strip().lower() if c is not None else "" for c in row]
+        if "erp id no." in norm:
+            header_idx = i
+            break
+    if header_idx is None:
+        return {}
+    headers = [str(c).strip().lower() if c is not None else ""
+               for c in all_rows[header_idx]]
+    try:
+        id_col = headers.index("erp id no.")
+        net_col = headers.index("net salary")
+    except ValueError:
+        return {}
+
+    out = {}
+    for row in all_rows[header_idx + 1:]:
+        eid = row[id_col] if id_col < len(row) else None
+        if eid is None or str(eid).strip() == "" \
+                or str(eid).strip().lower() == "total":
+            continue
+        net = row[net_col] if net_col < len(row) else None
+        out[str(eid).strip()] = flt(net)
+    return out
+
+
+def _clear_managed_addsal(emp_id, period_start, period_end):
+    """Cancel submitted Additional Salary in the period for the posting-owned
+    components, so the slip recomputes to a clean base and reconciliation re-runs
+    cleanly."""
+    names = frappe.get_all(
+        "Additional Salary",
+        filters={
+            "employee": emp_id,
+            "salary_component": ["in", RECON_MANAGED_COMPONENTS],
+            "docstatus": 1,
+            "payroll_date": ["between", [period_start, period_end]],
+        }, pluck="name")
+    for name in names:
+        try:
+            frappe.get_doc("Additional Salary", name).cancel()
+        except Exception:
+            frappe.log_error(
+                title=f"Reconcile: could not cancel Additional Salary {name}",
+                message=frappe.get_traceback())
+
+
+def _create_recon_addsal(emp_id, component, amount, payroll_date):
+    company = frappe.db.get_value("Employee", emp_id, "company") \
+        or frappe.defaults.get_global_default("company")
+    doc = frappe.new_doc("Additional Salary")
+    doc.employee = emp_id
+    doc.salary_component = component
+    doc.amount = abs(flt(amount))
+    doc.payroll_date = payroll_date
+    doc.company = company
+    doc.overwrite_salary_structure_amount = 1
+    if doc.meta.has_field("remarks"):
+        doc.remarks = "Auto net reconciliation to Elite sheet (ERC posting)."
+    if doc.meta.has_field("currency"):
+        doc.currency = frappe.db.get_value("Company", company,
+                                           "default_currency") or "SAR"
+    doc.flags.ignore_permissions = True
+    doc.insert(ignore_permissions=True)
+    doc.submit()
+    return doc.name
