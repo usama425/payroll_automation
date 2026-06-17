@@ -95,6 +95,15 @@ def run_parse(run_name, user=None):
             frappe.db.commit()
             return
 
+        # Misk School Oracle "RSMC Payroll Register Report": a multi-section
+        # Oracle export the generic column-map can't read (stacked tables, split
+        # GOSI/deduction columns, unlabelled identity columns). Dedicated reader
+        # that still flows through the shared match/validate/persist tail.
+        from . import misk_school_oracle_parser
+        if misk_school_oracle_parser.is_misk_school_oracle_mode(template):
+            misk_school_oracle_parser.run_misk_school_oracle_parse(run, template)
+            return
+
         file_path = _resolve_attached_file_path(run.source_file)
         wb = _open_workbook(file_path)
         sheet_name = _resolve_sheet(wb, template.sheet_name_override)
@@ -128,75 +137,7 @@ def run_parse(run_name, user=None):
             message=f"Read {rows_read} rows from sheet '{sheet_name}'. Now matching.",
         )
 
-        # Build indexes
-        indexes = employee_matcher.build_indexes(template)
-        frappe.log_error(
-            title=f"Payroll Import parse: indexes built {run_name}",
-            message=(
-                f"Built employee indexes for {len(indexes['employees'])} employees. "
-                f"Matching {len(parsed_rows)} parsed rows."
-            ),
-        )
-
-        # Match — wrap each row so one bad row doesn't kill the whole parse
-        matched, unmatched = [], []
-        for p in parsed_rows:
-            try:
-                m = employee_matcher.match_row(p, indexes, template)
-            except Exception:
-                frappe.log_error(
-                    title=f"Payroll Import parse: match_row error row {p.get('_row_index')}",
-                    message=frappe.get_traceback(),
-                )
-                m = {"employee": None, "method": None, "confidence": 0.0,
-                     "reason": "match_error", "suggestions": []}
-            p["_match"] = m
-            (matched if m["employee"] else unmatched).append(p)
-
-        frappe.log_error(
-            title=f"Payroll Import parse: matching done {run_name}",
-            message=f"matched={len(matched)} unmatched={len(unmatched)}. Computing unaccounted.",
-        )
-
-        # Reconcile: who's expected but absent?
-        matched_emp_ids = {p["_match"]["employee"] for p in matched}
-        expected_emp_ids = set(indexes["employees"].keys())
-        unaccounted_emp_ids = expected_emp_ids - matched_emp_ids
-
-        frappe.log_error(
-            title=f"Payroll Import parse: reconcile done {run_name}",
-            message=f"unaccounted={len(unaccounted_emp_ids)}. Pre-validating matched rows.",
-        )
-
-        # Run validators in-memory BEFORE persisting — avoids a second DB round-trip
-        warnings, errors = _pre_validate_matched(matched, template, indexes)
-
-        frappe.log_error(
-            title=f"Payroll Import parse: pre-validate done {run_name}",
-            message=f"warnings={warnings} errors={errors}. Persisting via db_insert.",
-        )
-
-        # Persist with direct db_insert() — avoids the slow run.save() with N children
-        _persist_results(run, matched, unmatched, unaccounted_emp_ids, indexes, warnings, errors)
-
-        frappe.log_error(
-            title=f"Payroll Import parse: persist done {run_name}",
-            message="All child rows saved. Setting status.",
-        )
-
-        run.db_set("status", "Reconciliation Pending")
-        run.db_set("parse_error_log", "")
-        frappe.db.commit()
-
-        frappe.log_error(
-            title=f"Payroll Import parse COMPLETE {run_name}",
-            message=(
-                f"Status=Reconciliation Pending. "
-                f"matched={len(matched)} unmatched={len(unmatched)} "
-                f"unaccounted={len(unaccounted_emp_ids)} "
-                f"warnings={warnings} errors={errors}"
-            ),
-        )
+        match_validate_persist(run, template, parsed_rows)
 
     except Exception:
         frappe.log_error(
@@ -209,6 +150,89 @@ def run_parse(run_name, user=None):
         except Exception:
             pass
         raise
+
+
+def match_validate_persist(run, template, parsed_rows):
+    """Shared parse tail: match parsed rows to employees, reconcile who's
+    expected-but-absent, pre-validate, and persist child rows. Sets the run's
+    status to ``Reconciliation Pending`` and commits.
+
+    Used by both readers that produce ``parsed_rows`` dicts (each carrying
+    ``raw_id_value`` / ``raw_iban`` / ``raw_name``, the NUMERIC_FIELDS, and
+    ``_row_index``): the generic column-map reader above and the dedicated
+    Misk-Oracle reader. Delta-mode has its own simpler persist path.
+    """
+    run_name = run.name
+
+    # Build indexes
+    indexes = employee_matcher.build_indexes(template)
+    frappe.log_error(
+        title=f"Payroll Import parse: indexes built {run_name}",
+        message=(
+            f"Built employee indexes for {len(indexes['employees'])} employees. "
+            f"Matching {len(parsed_rows)} parsed rows."
+        ),
+    )
+
+    # Match — wrap each row so one bad row doesn't kill the whole parse
+    matched, unmatched = [], []
+    for p in parsed_rows:
+        try:
+            m = employee_matcher.match_row(p, indexes, template)
+        except Exception:
+            frappe.log_error(
+                title=f"Payroll Import parse: match_row error row {p.get('_row_index')}",
+                message=frappe.get_traceback(),
+            )
+            m = {"employee": None, "method": None, "confidence": 0.0,
+                 "reason": "match_error", "suggestions": []}
+        p["_match"] = m
+        (matched if m["employee"] else unmatched).append(p)
+
+    frappe.log_error(
+        title=f"Payroll Import parse: matching done {run_name}",
+        message=f"matched={len(matched)} unmatched={len(unmatched)}. Computing unaccounted.",
+    )
+
+    # Reconcile: who's expected but absent?
+    matched_emp_ids = {p["_match"]["employee"] for p in matched}
+    expected_emp_ids = set(indexes["employees"].keys())
+    unaccounted_emp_ids = expected_emp_ids - matched_emp_ids
+
+    frappe.log_error(
+        title=f"Payroll Import parse: reconcile done {run_name}",
+        message=f"unaccounted={len(unaccounted_emp_ids)}. Pre-validating matched rows.",
+    )
+
+    # Run validators in-memory BEFORE persisting — avoids a second DB round-trip
+    warnings, errors = _pre_validate_matched(matched, template, indexes)
+
+    frappe.log_error(
+        title=f"Payroll Import parse: pre-validate done {run_name}",
+        message=f"warnings={warnings} errors={errors}. Persisting via db_insert.",
+    )
+
+    # Persist with direct db_insert() — avoids the slow run.save() with N children
+    _persist_results(run, matched, unmatched, unaccounted_emp_ids, indexes, warnings, errors)
+
+    frappe.log_error(
+        title=f"Payroll Import parse: persist done {run_name}",
+        message="All child rows saved. Setting status.",
+    )
+
+    run.db_set("status", "Reconciliation Pending")
+    run.db_set("parse_error_log", "")
+    frappe.db.commit()
+
+    frappe.log_error(
+        title=f"Payroll Import parse COMPLETE {run_name}",
+        message=(
+            f"Status=Reconciliation Pending. "
+            f"matched={len(matched)} unmatched={len(unmatched)} "
+            f"unaccounted={len(unaccounted_emp_ids)} "
+            f"warnings={warnings} errors={errors}"
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------

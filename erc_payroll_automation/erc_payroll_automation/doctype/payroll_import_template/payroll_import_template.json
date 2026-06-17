@@ -138,9 +138,9 @@
             "fieldname": "input_mode",
             "fieldtype": "Select",
             "label": "Input Mode",
-            "options": "Full from File\nDeltas (Datavolt)\nDeltas (Airproducts)",
+            "options": "Full from File\nDeltas (Datavolt)\nDeltas (Airproducts)\nMisk School Oracle",
             "default": "Full from File",
-            "description": "Full from File = the customer file carries the complete salary breakdown (default, all existing projects). Deltas = base salary comes from system Employee data for ALL project employees, and the file only supplies variable earnings/deductions. Datavolt matches on Employee ID; Airproducts matches on IQAMA."
+            "description": "Full from File = the customer file carries the complete salary breakdown (default, all existing projects). Deltas = base salary comes from system Employee data for ALL project employees, and the file only supplies variable earnings/deductions. Datavolt matches on Employee ID; Airproducts matches on IQAMA. Misk School Oracle = Misk's Oracle Fusion 'RSMC Payroll Register Report' export (stacked earning/deduction register + billing summary); reads the register section only, matches on IQAMA."
         },
         {
             "fieldname": "sheet_name_override",
