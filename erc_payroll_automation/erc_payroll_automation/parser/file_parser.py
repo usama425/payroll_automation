@@ -430,12 +430,28 @@ def _resolve_sheet(wb, override):
     if override in wb.sheetnames:
         return override
     ov = str(override).strip().lower()
+    # tolerate spacing differences (e.g. override 'RSG HQ' vs sheet 'RSG- HQ ')
+    ov_compact = ov.replace(" ", "").replace("-", "")
     for sn in wb.sheetnames:
         if str(sn).strip().lower().startswith(ov):
             return sn
     for sn in wb.sheetnames:
         if ov in str(sn).strip().lower():
             return sn
+    for sn in wb.sheetnames:
+        if ov_compact and ov_compact in str(sn).lower().replace(" ", "").replace("-", ""):
+            return sn
+    # Single-sheet file: the override can't be ambiguous — just use that sheet
+    # rather than hard-failing on a name mismatch (sheet names vary file to file:
+    # 'Sheet1' one month, 'RSG- HQ ' the next).
+    if len(wb.sheetnames) == 1:
+        only = wb.sheetnames[0]
+        frappe.log_error(
+            title="Payroll Import: sheet override mismatch, using only sheet",
+            message=(f"sheet_name_override={override!r} not found; the file has a "
+                     f"single sheet {only!r}, using it."),
+        )
+        return only
     raise ValueError(
         f"Sheet matching '{override}' not found in source file. "
         f"Available sheets: {wb.sheetnames}"
