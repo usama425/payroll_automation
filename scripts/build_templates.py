@@ -16,7 +16,7 @@ def cm(target, header=None, fallback=None, transform="trim_whitespace", required
     }
 
 
-    def f(target, header=None, fallback=None, required=0):
+def f(target, header=None, fallback=None, required=0):
     """Float-valued column."""
     return cm(target, header, fallback, "to_float", required)
 
