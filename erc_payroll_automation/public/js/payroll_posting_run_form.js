@@ -20,10 +20,9 @@ frappe.ui.form.on('Payroll Posting Run', {
 
         if (frm.doc.status === 'Review') {
             frm.add_custom_button(__('Post to Payroll'), function() {
-                const n_apply = (frm.doc.salary_changes || []).filter(r => r.apply).length;
-                const n_addsal = (frm.doc.additional_salary_preview || []).length;
+                const n_changes = (frm.doc.salary_changes || []).length;
                 frappe.confirm(
-                    __('Post payroll? This will:<br>• Update {0} approved salary change(s) on Employee + create new Salary Structure Assignments<br>• Submit {1} Additional Salary record(s)<br>• Create a DRAFT Payroll Entry for finance to submit<br><br>Salary Slips are NOT auto-submitted by this step.', [n_apply, n_addsal]),
+                    __('Post payroll? This will:<br>• Create a DRAFT Payroll Entry for finance to submit<br><br>Salary changes are NOT applied by the system ({0} detected — report only; correct Employee manually after project email approval).<br>Salary Slips are NOT auto-submitted by this step.', [n_changes]),
                     function() {
                         frappe.call({
                             method: 'erc_payroll_automation.erc_payroll_automation.doctype.payroll_posting_run.payroll_posting_run.trigger_post',
@@ -47,9 +46,9 @@ frappe.ui.form.on('Payroll Posting Run', {
             }, __('Actions'));
 
             frm.dashboard.add_indicator(
-                __('Review {0} salary change(s) — tick Apply on the ones you approve',
+                __('{0} salary change(s) detected — report only, the system will NOT apply them. Correct Employee manually after project email approval.',
                    [(frm.doc.salary_changes || []).length]),
-                (frm.doc.salary_changes || []).some(r => r.prorated_flag) ? 'orange' : 'blue'
+                (frm.doc.salary_changes || []).length ? 'orange' : 'blue'
             );
         }
 

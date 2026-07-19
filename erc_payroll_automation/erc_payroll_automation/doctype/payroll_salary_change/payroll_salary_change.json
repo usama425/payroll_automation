@@ -73,15 +73,17 @@
         {
             "fieldname": "apply",
             "fieldtype": "Check",
-            "label": "Apply",
+            "label": "Apply (Deactivated)",
             "in_list_view": 1,
             "default": 0,
-            "columns": 1
+            "read_only": 1,
+            "columns": 1,
+            "description": "Deactivated: the system never applies salary changes automatically. Correct the Employee record manually after project email approval."
         }
     ],
     "istable": 1,
     "links": [],
-    "modified": "2026-05-17 12:00:00",
+    "modified": "2026-07-19 12:00:00",
     "modified_by": "Administrator",
     "module": "Erc Payroll Automation",
     "name": "Payroll Salary Change",

@@ -50,7 +50,7 @@ def generate_no_file_outputs(run_name: str, user: str = None):
 
         # Step 4: save + attach
         filename = (
-            f"RSG- {project_name} Payroll (No File) - {month_label}.xlsx"
+            f"{project_name} Payroll (No File) - {month_label}.xlsx"
         ).replace("  ", " ")
         file_url = save_excel_and_link(
             wb, run.name, "internal_sheet_file", filename, "No File Internal Sheet",

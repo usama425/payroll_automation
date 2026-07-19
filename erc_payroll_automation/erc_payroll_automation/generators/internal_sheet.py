@@ -199,7 +199,7 @@ def generate(run, template) -> str:
     wb = build_workbook(run.parsed_rows, template, project_name, month_label,
                         period_start=run.payroll_period_start,
                         period_end=run.payroll_period_end)
-    filename = f"RSG- {project_name} Payroll - {month_label}.xlsx".replace("  ", " ")
+    filename = f"{project_name} Payroll - {month_label}.xlsx".replace("  ", " ")
     return save_excel_and_link(
         wb, run.name, "internal_sheet_file", filename, "Internal Sheet",
     )
@@ -219,7 +219,7 @@ def build_workbook(rows, template, project_name, month_label, period_start=None,
     period_days = _period_days(period_start, period_end)
     wb = Workbook()
     ws = wb.active
-    ws.title = f"RSG- {project_name.upper()}"[:31]
+    ws.title = project_name.upper()[:31]
 
     ws.cell(row=1, column=1, value=f"Elite - RSP- {project_name} Payroll").font = Font(bold=True, size=12)
     ws.cell(row=2, column=1, value=f"For the month of {month_label}").font = Font(italic=True)

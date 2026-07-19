@@ -4,9 +4,11 @@ Two background entry points:
 
   parse_sheet(run_name)  — read the approved Internal Sheet, diff fixed pay vs
                            Employee fields, build the review + variable tables.
-  post(run_name)         — apply approved salary changes (Employee + new SSA),
-                           create submitted Additional Salary, create a DRAFT
-                           Payroll Entry.
+  post(run_name)         — create a DRAFT Payroll Entry. Detected fixed-pay
+                           changes are REPORT-ONLY (finance rule): the system
+                           never writes salary fields on Employee from the
+                           sheet — HR corrects them manually after project
+                           email approval.
 
 The Internal Sheet is OUR own 33-column RSG layout (see generators/internal_sheet
 COLUMNS), so parsing is deterministic — we match by the row-4 header text.
@@ -104,8 +106,9 @@ def parse_sheet(run_name, user=None):
                     "current_value": cur_val,
                     "sheet_value": sheet_val,
                     "prorated_flag": 1 if is_prorated else 0,
-                    # Auto-tick contract Basic always; allowances only when not prorated
-                    "apply": 0 if is_prorated else 1,
+                    # REPORT-ONLY: never auto-applied. Fixed pay is corrected
+                    # manually on Employee after project email approval.
+                    "apply": 0,
                 })
 
             for sheet_key, component in VARIABLE_COMPONENTS:
@@ -127,8 +130,9 @@ def parse_sheet(run_name, user=None):
         run.status = "Review"
         run.posting_log = (
             f"Parsed {run.employees_in_sheet} employees. "
-            f"{len(salary_changes)} fixed-pay changes detected "
-            f"({sum(1 for c in salary_changes if c['prorated_flag'])} prorated — left unticked). "
+            f"{len(salary_changes)} fixed-pay difference(s) detected — REPORT "
+            f"ONLY, not applied; correct Employee manually after project email "
+            f"approval. "
             f"{len(variable_preview)} Additional Salary rows queued."
         )
         run.save(ignore_permissions=True)
@@ -188,48 +192,19 @@ def post(run_name, user=None):
         if payroll_date < period_start or payroll_date > period_end:
             payroll_date = period_end
 
-        # ---- 1. Apply approved fixed-pay changes (Employee + new SSA) --------
-        # Group approved changes by employee
-        by_emp = {}
-        for ch in run.salary_changes:
-            if not ch.apply:
-                continue
-            by_emp.setdefault(ch.employee, {})[ch.fieldname] = flt(ch.sheet_value)
-
-        ssa_created = ssa_skipped = emp_updated = 0
-        for emp_id, changes in by_emp.items():
-            try:
-                # Update Employee fixed-pay fields directly
-                frappe.db.set_value("Employee", emp_id, changes,
-                                    update_modified=True)
-                emp_updated += 1
-
-                # A base change (or no active SSA) requires a fresh dated SSA
-                base_changed = "basic_salary" in changes
-                made = _ensure_ssa(
-                    emp_id, run.salary_structure, period_start,
-                    new_base=changes.get("basic_salary"),
-                    allowances={
-                        k: v for k, v in changes.items()
-                        if k in ("housing_allowance", "transport_allowance",
-                                 "food_allowance")
-                    },
-                    project=run.project,
-                    force=base_changed,
-                    log_lines=log_lines,
-                )
-                if made == "created":
-                    ssa_created += 1
-                elif made == "skipped":
-                    ssa_skipped += 1
-            except Exception as e:
-                log_lines.append(f"[SSA ERROR] {emp_id}: {e}")
-                frappe.log_error(
-                    title=f"Payroll Posting: SSA error {emp_id} ({run_name})",
-                    message=frappe.get_traceback(),
-                )
-
-        frappe.db.commit()
+        # ---- 1. Fixed-pay changes are REPORT-ONLY (finance rule) -------------
+        # The system never writes salary fields on Employee or creates SSAs
+        # from sheet differences. The detected changes stay visible on the
+        # Review table; HR corrects Employee manually after project email
+        # approval. (New hires with NO SSA at all still get one auto-created
+        # from their CURRENT Employee contract pay in _ensure_payroll_ssas —
+        # that reads the system value, it never applies a sheet value.)
+        n_changes = len(run.salary_changes or [])
+        if n_changes:
+            log_lines.append(
+                f"[REPORT ONLY] {n_changes} fixed-pay difference(s) detected — "
+                f"NOT applied. Correct the Employee record(s) manually after "
+                f"project email approval.")
 
         # ---- 2. (Removed) per-column Additional Salary --------------------
         # We no longer create separate Overtime / Other Additions / Deductions /
@@ -255,8 +230,7 @@ def post(run_name, user=None):
             )
 
         summary = (
-            f"Employees updated: {emp_updated}. "
-            f"SSAs created: {ssa_created}, skipped (unchanged): {ssa_skipped}. "
+            f"Fixed-pay changes: {n_changes} detected, 0 applied (report-only). "
             f"Additional Salary submitted: {addsal_created}. "
             f"Draft Payroll Entry: {pe_name or 'NOT created — see log'}."
         )
@@ -769,6 +743,12 @@ def _eligible_employees(run, company, work_location=None,
 # then ONE line closes the gap to the sheet Net:
 #   sheet Net > slip Net  ->  "Other Additions"      (extra days / additions)
 #   sheet Net < slip Net  ->  "Deduction for absent" (fewer days / deductions)
+#
+# Advance repayments (RFP Employee Advances -> repay-from-salary Loans) are
+# ERC-internal deductions the customer sheet knows nothing about, so the slip
+# is reconciled to (sheet Net - loan repayment): the advance deduction survives
+# and is never cancelled out by the reconciliation line. Billing is unaffected
+# (hr_services adds the repayment back when charging the client).
 
 RECON_EARNING = "Other Additions"
 RECON_DEDUCTION = "Deduction for absent"
@@ -828,7 +808,11 @@ def reconcile_payroll_entry(run_name, user=None):
             slip = frappe.get_doc("Salary Slip", s.name)
             slip.save(ignore_permissions=True)            # recompute base Net
             base_net = flt(slip.net_pay)
-            diff = round(flt(target) - base_net, 2)
+            # Advance/loan repayments must SURVIVE reconciliation: target the
+            # sheet Net MINUS the repayment so the advance stays deducted.
+            loan_repay = flt(slip.total_loan_repayment)
+            target_net = round(flt(target) - loan_repay, 2)
+            diff = round(target_net - base_net, 2)
             if abs(diff) < 0.01:
                 matched += 1
                 continue
@@ -838,9 +822,10 @@ def reconcile_payroll_entry(run_name, user=None):
             slip.reload()
             slip.save(ignore_permissions=True)
             reconciled += 1
-            ok = abs(flt(slip.net_pay) - flt(target)) < 0.05
+            ok = abs(flt(slip.net_pay) - target_net) < 0.05
+            adv_note = f" - advance {loan_repay:.2f}" if loan_repay else ""
             log.append(f"[RECON{'' if ok else ' CHECK'}] {s.employee} "
-                       f"base {base_net:.2f} -> sheet {flt(target):.2f} "
+                       f"base {base_net:.2f} -> sheet {flt(target):.2f}{adv_note} "
                        f"({comp} {abs(diff):.2f}); slip now {flt(slip.net_pay):.2f}")
         except Exception as e:
             log.append(f"[RECON ERROR] {s.employee}: {e}")

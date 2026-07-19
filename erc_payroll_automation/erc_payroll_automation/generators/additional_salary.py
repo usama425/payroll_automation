@@ -24,6 +24,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 
 from .file_attach import save_excel_and_link
+from .internal_sheet import _project_display_name
 
 
 # Source column on Payroll Import Row → Salary Component name in ERPNext
@@ -80,7 +81,8 @@ def generate(run, template) -> str:
     for col, w in widths.items():
         ws.column_dimensions[ws.cell(row=1, column=col).column_letter].width = w
 
-    filename = f"Additional_Salary_RSG_{run.name}.xlsx"
+    project_label = _project_display_name(template).replace(" ", "_")
+    filename = f"Additional_Salary_{project_label}_{run.name}.xlsx"
     return save_excel_and_link(
         wb, run.name, "additional_salary_file", filename, "Additional Salary",
     )
