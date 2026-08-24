@@ -90,6 +90,17 @@ def lowercase(value):
     return str(value).lower() if value is not None else None
 
 
+def abs_value(value):
+    """Absolute value of a number.
+
+    Oracle payroll registers book deductions and employee GOSI as negative
+    amounts (Total GOSI -46,211.86).  The Elite sheet adds employee GOSI back
+    onto Net to reach the Charge Base, so it needs the magnitude, not the sign.
+    """
+    v = to_float(value)
+    return abs(v) if v is not None else None
+
+
 def _noop(value):
     return value
 
@@ -107,6 +118,7 @@ REGISTRY = {
     "strip_arabic_diacritics": strip_arabic_diacritics,
     "uppercase": uppercase,
     "lowercase": lowercase,
+    "abs_value": abs_value,
 }
 
 

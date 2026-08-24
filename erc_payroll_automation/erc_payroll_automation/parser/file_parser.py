@@ -174,18 +174,23 @@ def match_validate_persist(run, template, parsed_rows):
         ),
     )
 
-    # Match — wrap each row so one bad row doesn't kill the whole parse
+    # Match the whole file at once: identifiers (Iqama / passport / IBAN) are
+    # resolved first, names are only a fallback for rows that carry no
+    # identifier, and an employee can be claimed by one row only.
+    try:
+        results = employee_matcher.match_all(parsed_rows, indexes, template)
+    except Exception:
+        frappe.log_error(
+            title=f"Payroll Import parse: match_all error {run_name}",
+            message=frappe.get_traceback(),
+        )
+        results = [None] * len(parsed_rows)
+
     matched, unmatched = [], []
-    for p in parsed_rows:
-        try:
-            m = employee_matcher.match_row(p, indexes, template)
-        except Exception:
-            frappe.log_error(
-                title=f"Payroll Import parse: match_row error row {p.get('_row_index')}",
-                message=frappe.get_traceback(),
-            )
+    for p, m in zip(parsed_rows, results):
+        if m is None:
             m = {"employee": None, "method": None, "confidence": 0.0,
-                 "reason": "match_error", "suggestions": []}
+                 "reason": "no_match", "suggestions": []}
         p["_match"] = m
         (matched if m["employee"] else unmatched).append(p)
 

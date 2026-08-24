@@ -1,0 +1,103 @@
+{
+ "actions": [],
+ "creation": "2026-08-24 10:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "group_no",
+  "iban",
+  "employee",
+  "employee_name",
+  "status",
+  "project",
+  "department",
+  "date_of_joining",
+  "basic_salary",
+  "ctc"
+ ],
+ "fields": [
+  {
+   "fieldname": "group_no",
+   "fieldtype": "Int",
+   "label": "Group #",
+   "in_list_view": 1,
+   "columns": 1,
+   "read_only": 1,
+   "description": "Employees sharing the same row-number group have the identical IBAN"
+  },
+  {
+   "fieldname": "iban",
+   "fieldtype": "Data",
+   "label": "IBAN",
+   "in_list_view": 1,
+   "columns": 2,
+   "read_only": 1
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "Employee",
+   "options": "Employee",
+   "in_list_view": 1,
+   "columns": 2,
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Name",
+   "in_list_view": 1,
+   "columns": 2,
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Data",
+   "label": "Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "in_list_view": 1,
+   "columns": 2,
+   "read_only": 1
+  },
+  {
+   "fieldname": "department",
+   "fieldtype": "Data",
+   "label": "Department",
+   "read_only": 1
+  },
+  {
+   "fieldname": "date_of_joining",
+   "fieldtype": "Date",
+   "label": "Date of Joining",
+   "read_only": 1
+  },
+  {
+   "fieldname": "basic_salary",
+   "fieldtype": "Currency",
+   "label": "Basic Salary",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ctc",
+   "fieldtype": "Currency",
+   "label": "CTC",
+   "read_only": 1
+  }
+ ],
+ "istable": 1,
+ "modified": "2026-08-24 10:00:00",
+ "module": "Erc Payroll Automation",
+ "name": "Payroll IBAN Duplicate Row",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "group_no",
+ "sort_order": "ASC"
+}
