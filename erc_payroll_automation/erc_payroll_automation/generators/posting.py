@@ -21,6 +21,9 @@ from frappe.utils import getdate, now_datetime, flt
 
 from ..parser.file_parser import _resolve_attached_file_path
 
+# Employee status for hires not yet on payroll (option added by hr_services).
+UNDER_RECRUITMENT_STATUS = "Under Recruitment"
+
 
 # Internal-sheet header text  ->  logical key
 HEADER_MAP = {
@@ -551,6 +554,27 @@ def _create_draft_payroll_entry(run):
     # employees in the sheet. Fall back to project scope only if the sheet
     # can't be read.
     sheet_emp_ids = _sheet_employee_ids(run) or None
+
+    # Employees still Under Recruitment must never be paid. Fail before any
+    # SSA is auto-created, and don't leave an empty shell PE behind. (The
+    # project-scope fallback below already filters on status Active.)
+    if sheet_emp_ids:
+        blocked = frappe.get_all(
+            "Employee",
+            filters={"name": ["in", sheet_emp_ids],
+                     "status": UNDER_RECRUITMENT_STATUS},
+            fields=["name", "employee_name"], order_by="name asc",
+        )
+        if blocked:
+            frappe.delete_doc("Payroll Entry", pe.name,
+                              ignore_permissions=True, force=True)
+            raise ValueError(
+                f"Payroll cannot be processed for employees with status "
+                f"{UNDER_RECRUITMENT_STATUS}: "
+                + ", ".join(f"{e.name} ({e.employee_name})" for e in blocked)
+                + ". Remove them from the approved sheet or change their "
+                  "status first."
+            )
 
     # Auto-create a Salary Structure Assignment for any employee missing one
     # (e.g. new hires) from their current Employee CONTRACT base pay, so they
