@@ -1,0 +1,125 @@
+{
+ "actions": [],
+ "autoname": "format:PIDC-{YYYY}-{MM}-{####}",
+ "creation": "2026-08-24 10:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_summary",
+  "scan_datetime",
+  "column_break_summary",
+  "active_employees_scanned",
+  "employees_without_iban",
+  "column_break_summary2",
+  "unique_ibans",
+  "duplicate_iban_groups",
+  "section_results",
+  "results"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_summary",
+   "fieldtype": "Section Break",
+   "label": "Summary"
+  },
+  {
+   "fieldname": "scan_datetime",
+   "fieldtype": "Datetime",
+   "label": "Scanned On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_summary",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "active_employees_scanned",
+   "fieldtype": "Int",
+   "label": "Active Employees Scanned",
+   "read_only": 1
+  },
+  {
+   "fieldname": "employees_without_iban",
+   "fieldtype": "Int",
+   "label": "Active Employees Without IBAN",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_summary2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "unique_ibans",
+   "fieldtype": "Int",
+   "label": "Unique IBANs Found",
+   "read_only": 1
+  },
+  {
+   "fieldname": "duplicate_iban_groups",
+   "fieldtype": "Int",
+   "label": "IBANs Shared by Multiple Active Employees",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_results",
+   "fieldtype": "Section Break",
+   "label": "Duplicate IBANs"
+  },
+  {
+   "fieldname": "results",
+   "fieldtype": "Table",
+   "options": "Payroll IBAN Duplicate Row",
+   "label": "Results"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 0,
+ "links": [],
+ "modified": "2026-08-24 10:00:00",
+ "module": "Erc Payroll Automation",
+ "name": "Payroll IBAN Duplicate Check",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Payroll Import Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Payroll Import User",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager"
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

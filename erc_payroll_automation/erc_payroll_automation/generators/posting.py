@@ -21,6 +21,9 @@ from frappe.utils import getdate, now_datetime, flt
 
 from ..parser.file_parser import _resolve_attached_file_path
 
+# Employee status for hires not yet on payroll (option added by hr_services).
+UNDER_RECRUITMENT_STATUS = "Under Recruitment"
+
 
 # Internal-sheet header text  ->  logical key
 HEADER_MAP = {
@@ -552,6 +555,27 @@ def _create_draft_payroll_entry(run):
     # can't be read.
     sheet_emp_ids = _sheet_employee_ids(run) or None
 
+    # Employees still Under Recruitment must never be paid. Fail before any
+    # SSA is auto-created, and don't leave an empty shell PE behind. (The
+    # project-scope fallback below already filters on status Active.)
+    if sheet_emp_ids:
+        blocked = frappe.get_all(
+            "Employee",
+            filters={"name": ["in", sheet_emp_ids],
+                     "status": UNDER_RECRUITMENT_STATUS},
+            fields=["name", "employee_name"], order_by="name asc",
+        )
+        if blocked:
+            frappe.delete_doc("Payroll Entry", pe.name,
+                              ignore_permissions=True, force=True)
+            raise ValueError(
+                f"Payroll cannot be processed for employees with status "
+                f"{UNDER_RECRUITMENT_STATUS}: "
+                + ", ".join(f"{e.name} ({e.employee_name})" for e in blocked)
+                + ". Remove them from the approved sheet or change their "
+                  "status first."
+            )
+
     # Auto-create a Salary Structure Assignment for any employee missing one
     # (e.g. new hires) from their current Employee CONTRACT base pay, so they
     # aren't silently dropped from the Payroll Entry. Worked-days/bridge
@@ -774,7 +798,8 @@ def reconcile_payroll_entry(run_name, user=None):
             "No Payroll Entry is linked to this run yet — create it and its "
             "Salary Slips first, then reconcile.")
 
-    sheet_net = _sheet_net_by_emp(run)
+    sheet_rows = _sheet_rows_by_emp(run)
+    sheet_net = {emp: row["net"] for emp, row in sheet_rows.items()}
     if not sheet_net:
         raise ValueError(
             "Could not read 'Net Salary' from the approved sheet — is it the "
@@ -806,6 +831,7 @@ def reconcile_payroll_entry(run_name, user=None):
             # 1. clear posting-owned lines so the slip recomputes to a clean base
             _clear_managed_addsal(s.employee, period_start, period_end)
             slip = frappe.get_doc("Salary Slip", s.name)
+            _drop_cancelled_addsal_rows(slip)
             slip.save(ignore_permissions=True)            # recompute base Net
             base_net = flt(slip.net_pay)
             # Advance/loan repayments must SURVIVE reconciliation: target the
@@ -813,20 +839,23 @@ def reconcile_payroll_entry(run_name, user=None):
             loan_repay = flt(slip.total_loan_repayment)
             target_net = round(flt(target) - loan_repay, 2)
             diff = round(target_net - base_net, 2)
-            if abs(diff) < 0.01:
+            lines = _recon_lines(diff, sheet_rows[s.employee])
+            if not lines:
                 matched += 1
                 continue
-            # 2. one reconciliation line, then recompute with it
-            comp = RECON_EARNING if diff > 0 else RECON_DEDUCTION
-            _create_recon_addsal(s.employee, comp, abs(diff), payroll_date)
+            # 2. one line per sheet column (Deductions, HQ Ded, Other Income,
+            #    Overtime) + the unexplained rest, then recompute with them
+            for comp, amount in lines:
+                _create_recon_addsal(s.employee, comp, amount, payroll_date)
             slip.reload()
             slip.save(ignore_permissions=True)
             reconciled += 1
             ok = abs(flt(slip.net_pay) - target_net) < 0.05
             adv_note = f" - advance {loan_repay:.2f}" if loan_repay else ""
+            lines_note = ", ".join(f"{c} {a:.2f}" for c, a in lines)
             log.append(f"[RECON{'' if ok else ' CHECK'}] {s.employee} "
                        f"base {base_net:.2f} -> sheet {flt(target):.2f}{adv_note} "
-                       f"({comp} {abs(diff):.2f}); slip now {flt(slip.net_pay):.2f}")
+                       f"({lines_note}); slip now {flt(slip.net_pay):.2f}")
         except Exception as e:
             log.append(f"[RECON ERROR] {s.employee}: {e}")
             frappe.log_error(
@@ -845,8 +874,40 @@ def reconcile_payroll_entry(run_name, user=None):
             "submitted_skipped": submitted, "message": summary}
 
 
-def _sheet_net_by_emp(run):
-    """{employee -> Net Salary} read from the approved Internal Sheet."""
+# Sheet variable columns booked under their own component during reconciliation,
+# as (sheet key, component, sign on Net).
+RECON_SHEET_COLUMNS = [
+    ("overtime",      "Overtime",        1),
+    ("other_income",  RECON_EARNING,     1),
+    ("deductions",    "Deductions",     -1),
+    ("hq_deductions", "HQ Deductions",  -1),
+]
+
+
+def _recon_lines(diff, sheet_row):
+    """Split the Net difference into [(component, amount)]: each sheet variable
+    column under its own component, and whatever the sheet columns don't
+    explain (working days, rounding) as Other Additions / Deduction for absent."""
+    amounts = {}
+    explained = 0.0
+    for key, comp, sign in RECON_SHEET_COLUMNS:
+        value = round(abs(flt(sheet_row.get(key))), 2)
+        if value >= 0.01:
+            amounts[comp] = amounts.get(comp, 0.0) + value
+            explained += sign * value
+
+    rest = round(flt(diff) - explained, 2)
+    if rest >= 0.01:
+        amounts[RECON_EARNING] = amounts.get(RECON_EARNING, 0.0) + rest
+    elif rest <= -0.01:
+        amounts[RECON_DEDUCTION] = amounts.get(RECON_DEDUCTION, 0.0) + abs(rest)
+
+    return [(comp, round(amount, 2)) for comp, amount in amounts.items() if amount >= 0.01]
+
+
+def _sheet_rows_by_emp(run):
+    """{employee -> {net, overtime, other_income, deductions, hq_deductions}}
+    read from the approved Internal Sheet."""
     from openpyxl import load_workbook
     if not run.approved_sheet:
         return {}
@@ -871,6 +932,8 @@ def _sheet_net_by_emp(run):
         net_col = headers.index("net salary")
     except ValueError:
         return {}
+    var_cols = {HEADER_MAP[h]: j for j, h in enumerate(headers)
+                if HEADER_MAP.get(h) in {key for key, _c, _s in RECON_SHEET_COLUMNS}}
 
     out = {}
     for row in all_rows[header_idx + 1:]:
@@ -878,9 +941,16 @@ def _sheet_net_by_emp(run):
         if eid is None or str(eid).strip() == "" \
                 or str(eid).strip().lower() == "total":
             continue
-        net = row[net_col] if net_col < len(row) else None
-        out[str(eid).strip()] = flt(net)
+        data = {"net": flt(row[net_col] if net_col < len(row) else None)}
+        for key, j in var_cols.items():
+            data[key] = flt(row[j] if j < len(row) else None)
+        out[str(eid).strip()] = data
     return out
+
+
+def _sheet_net_by_emp(run):
+    """{employee -> Net Salary} read from the approved Internal Sheet."""
+    return {emp: row["net"] for emp, row in _sheet_rows_by_emp(run).items()}
 
 
 def _clear_managed_addsal(emp_id, period_start, period_end):
@@ -902,6 +972,23 @@ def _clear_managed_addsal(emp_id, period_start, period_end):
             frappe.log_error(
                 title=f"Reconcile: could not cancel Additional Salary {name}",
                 message=frappe.get_traceback())
+
+
+def _drop_cancelled_addsal_rows(slip):
+    """Remove earning/deduction rows still linked to a cancelled Additional
+    Salary (e.g. just cancelled by _clear_managed_addsal), otherwise the slip
+    save fails with "Cannot link cancelled document"."""
+    for table in ("earnings", "deductions"):
+        rows = slip.get(table) or []
+        linked = {r.additional_salary for r in rows if r.additional_salary}
+        if not linked:
+            continue
+        cancelled = set(frappe.get_all(
+            "Additional Salary",
+            filters={"name": ["in", list(linked)], "docstatus": 2},
+            pluck="name"))
+        if cancelled:
+            slip.set(table, [r for r in rows if r.additional_salary not in cancelled])
 
 
 def _create_recon_addsal(emp_id, component, amount, payroll_date):

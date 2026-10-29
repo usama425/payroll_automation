@@ -3,9 +3,13 @@
     Tier 1: Iqama / National ID exact (digits-only IDs)  → Employee.iqama_national_id
     Tier 2: Passport exact (alphanumeric with letters)   → Employee.passport_number
     Tier 3: IBAN exact (cleaned, uppercase)              → Employee.bank_ac_no
-    Tier 4: Fuzzy name (rapidfuzz WRatio, threshold from template.name_match_threshold)
+
+Fuzzy name matching never assigns an employee (it matched different people with
+similar names); it only suggests candidates on unmatched rows for manual resolution.
 
 In-memory indexes are scoped to template.project (+ optional custom_location filter).
+Tiers 1-3 fall back to the whole project when the location filter misses someone
+(e.g. new hires whose Work Location is still blank).
 Typical 1500-row file matches in well under a second.
 """
 
@@ -61,6 +65,20 @@ def build_indexes(template):
         if e.employee_name:
             names.append((e.name, e.employee_name.strip()))
 
+    # Project-wide exact-ID fallback (ignores the location filter). Not part of
+    # "employees", so these people are never reported as expected-but-absent.
+    project_ids = {"by_iqama": {}, "by_passport": {}, "by_iban": {}}
+    if template.project:
+        for e in frappe.get_all("Employee", filters={"status": "Active", "project": template.project},
+                                fields=["name", "iqama_national_id", "passport_number", "bank_ac_no"]):
+            if e.iqama_national_id:
+                project_ids["by_iqama"][str(e.iqama_national_id).strip()] = e.name
+            if e.passport_number:
+                project_ids["by_passport"][str(e.passport_number).strip().upper()] = e.name
+            cleaned = _clean_iban(e.bank_ac_no)
+            if cleaned:
+                project_ids["by_iban"][cleaned] = e.name
+
     return {
         "by_iqama": by_iqama,
         "by_passport": by_passport,
@@ -68,6 +86,7 @@ def build_indexes(template):
         "by_client_id": by_client_id,
         "names": names,
         "employees": emps,
+        "project": project_ids,
     }
 
 
@@ -81,9 +100,43 @@ def match_row(parsed_row, indexes, template):
     or:
         {"employee": None, "method": None, "confidence": 0.0, "reason": "...", "suggestions": [...]}
     """
+    raw_name = parsed_row.get("raw_name")
+
+    m = _match_exact(parsed_row, indexes)
+    if not m and indexes.get("project"):
+        m = _match_exact(parsed_row, indexes["project"])
+    if m:
+        return m
+
+    # No exact ID match: suggest similar names for manual resolution, never auto-match
+    if raw_name and indexes["names"]:
+        candidates = [n for _, n in indexes["names"]]
+        suggestions_raw = process.extract(
+            str(raw_name).strip(),
+            candidates,
+            scorer=fuzz.WRatio,
+            limit=3,
+        )
+        suggestions = [
+            {
+                "employee": indexes["names"][i][0],
+                "name": n,
+                "score": round(s / 100, 4),
+            }
+            for n, s, i in suggestions_raw
+        ]
+        return _miss("no_match", suggestions)
+
+    # Nothing to match against
+    if not parsed_row.get("raw_id_value") and not parsed_row.get("raw_iban") and not raw_name:
+        return _miss("empty_id_field", [])
+    return _miss("no_match", [])
+
+
+def _match_exact(parsed_row, indexes):
+    """Tiers 1-3 against one set of {by_iqama, by_passport, by_iban} indexes."""
     raw_id = parsed_row.get("raw_id_value")
     raw_iban = parsed_row.get("raw_iban")
-    raw_name = parsed_row.get("raw_name")
 
     # Tier 1 + 2: ID field can be Iqama (all digits) or Passport (has letters)
     if raw_id:
@@ -115,42 +168,7 @@ def match_row(parsed_row, indexes, template):
             if emp_id:
                 return _hit(emp_id, "iban_exact", 1.0)
 
-    # Tier 4: Fuzzy name
-    if raw_name and indexes["names"]:
-        threshold_pct = (template.name_match_threshold or 0.85) * 100
-        candidates = [n for _, n in indexes["names"]]
-        best = process.extractOne(
-            str(raw_name).strip(),
-            candidates,
-            scorer=fuzz.WRatio,
-            score_cutoff=threshold_pct,
-        )
-        if best:
-            _, score, idx = best
-            emp_id, _ = indexes["names"][idx]
-            return _hit(emp_id, "name_fuzzy", round(score / 100, 4))
-
-        # Below threshold — return top 3 suggestions for the user to resolve
-        suggestions_raw = process.extract(
-            str(raw_name).strip(),
-            candidates,
-            scorer=fuzz.WRatio,
-            limit=3,
-        )
-        suggestions = [
-            {
-                "employee": indexes["names"][i][0],
-                "name": n,
-                "score": round(s / 100, 4),
-            }
-            for n, s, i in suggestions_raw
-        ]
-        return _miss("no_match", suggestions)
-
-    # Nothing to match against
-    if not raw_id and not raw_iban and not raw_name:
-        return _miss("empty_id_field", [])
-    return _miss("no_match", [])
+    return None
 
 
 def _hit(emp_id, method, confidence):
