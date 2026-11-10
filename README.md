@@ -1,6 +1,6 @@
 # ERC Payroll Automation
 
-Internal Frappe v15 app for ERC's payroll import & reconciliation workflow.
+Internal Frappe v16 app for ERC's payroll import & reconciliation workflow.
 
 ## What it does
 
@@ -34,7 +34,7 @@ bench --site <your-site> migrate
 
 ## Assumptions
 
-- Frappe / ERPNext / HRMS v15
+- Frappe / ERPNext / HRMS v16
 - `Work Location` DocType already exists in the bench
 - `custom_location` (Link → Work Location) custom field already exists on Employee
 

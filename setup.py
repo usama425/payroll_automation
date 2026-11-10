@@ -21,6 +21,6 @@ setup(
     packages=find_packages(),
     zip_safe=False,
     include_package_data=True,
-    python_requires=">=3.10",
+    python_requires=">=3.14",
     install_requires=install_requires,
 )
