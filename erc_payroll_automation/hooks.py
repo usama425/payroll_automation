@@ -5,6 +5,9 @@ app_description = "Internal payroll import & reconciliation automation for ERC."
 app_email = "usamaabdullah.link@gmail.com"
 app_license = "MIT"
 
+# Installed before this app (Payroll Entry / Salary Slip live in HRMS).
+required_apps = ["erpnext", "hrms"]
+
 # Includes in <head>
 # ------------------
 
